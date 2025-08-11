@@ -1,7 +1,11 @@
 ---
-- name: Backup, Replace WebLogic Files, Uninstall & Install Java on Windows Server
+- name: Backup, Replace WebLogic Files, Uninstall & Install Java on Windows Server - PROD Environment
   hosts: prod_weblogic_win
   gather_facts: no
+  
+  # Jenkins Pipeline Compatibility
+  serial: 1  # Execute one host at a time for better control
+  max_fail_percentage: 0  # Fail fast if any host fails
   
   vars:
     # Configurable paths - can be overridden per environment
@@ -17,6 +21,38 @@
     # Source files on Ansible server
     ansible_source_dir: "/home/appadmin/Upgrade_weblogic_files"
     
+    # Jenkins Pipeline Variables
+    jenkins_build_number: "{{ jenkins_build_number | default('manual') }}"
+    jenkins_job_name: "{{ jenkins_job_name | default('ansible-weblogic-upgrade') }}"
+    
+  pre_tasks:
+    - name: Log Jenkins Pipeline Start
+      debug:
+        msg: |
+          === Jenkins Pipeline Execution Started ===
+          Build Number: {{ jenkins_build_number }}
+          Job Name: {{ jenkins_job_name }}
+          Target Host: {{ inventory_hostname }}
+          Environment: PROD
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+    - name: Validate required files exist on Ansible server
+      stat:
+        path: "{{ ansible_source_dir }}/{{ item }}"
+      loop:
+        - ".globalEnv.properties"
+        - "nodemanager.properties"
+        - "setNMJavaHome.cmd"
+        - "setDomainEnv.cmd"
+        - "{{ java_installer }}"
+      register: source_file_check
+      
+    - name: Fail if required source files are missing
+      fail:
+        msg: "Required source file {{ item.item }} is missing from {{ ansible_source_dir }}"
+      when: not item.stat.exists
+      loop: "{{ source_file_check.results }}"
+      
   tasks:
     ### Ensure Backup Directory Exists
     - name: Create Backup Directory
@@ -62,7 +98,37 @@
         msg: "{{ backup_results.results | map(attribute='stdout_lines') | list }}"
 
     ### Copy New WebLogic Configuration Files
-    - name: Copy New WebLogic Files from Ansible Server
+    - name: Check if WebLogic files exist before replacement
+      win_stat:
+        path: "{{ item.dest }}"
+      loop:
+        - { src: ".globalEnv.properties", dest: "{{ oracle_home }}\\oui\\.globalEnv.properties" }
+        - { src: "nodemanager.properties", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties" }
+        - { src: "setNMJavaHome.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd" }
+        - { src: "setDomainEnv.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd" }
+      register: file_check_results
+
+    - name: Display file existence status
+      debug:
+        msg: "File {{ item.item.dest }} exists: {{ item.stat.exists }}"
+      loop: "{{ file_check_results.results }}"
+
+    - name: Copy New WebLogic Files from Ansible Server (with content replacement)
+      win_copy:
+        src: "{{ ansible_source_dir }}/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        remote_src: no
+        force: yes
+      loop:
+        - { src: ".globalEnv.properties", dest: "{{ oracle_home }}\\oui\\.globalEnv.properties" }
+        - { src: "nodemanager.properties", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties" }
+        - { src: "setNMJavaHome.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd" }
+        - { src: "setDomainEnv.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd" }
+      when: item.stat.exists
+      register: copy_results
+      loop: "{{ file_check_results.results }}"
+
+    - name: Copy New WebLogic Files for non-existing files
       win_copy:
         src: "{{ ansible_source_dir }}/{{ item.src }}"
         dest: "{{ item.dest }}"
@@ -72,11 +138,35 @@
         - { src: "nodemanager.properties", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties" }
         - { src: "setNMJavaHome.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd" }
         - { src: "setDomainEnv.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd" }
-      register: copy_results
+      when: not item.stat.exists
+      register: copy_new_results
+      loop: "{{ file_check_results.results }}"
 
-    - name: Display Copy Results
+    - name: Verify file content after replacement
+      win_shell: |
+        $filePath = "{{ item.dest }}"
+        if (Test-Path $filePath) {
+          $content = Get-Content $filePath -Raw
+          $lineCount = ($content -split "`n").Count
+          Write-Output "File: $filePath - Lines: $lineCount - Size: $((Get-Item $filePath).Length) bytes"
+        } else {
+          Write-Output "File: $filePath - NOT FOUND"
+        }
+      loop:
+        - { src: ".globalEnv.properties", dest: "{{ oracle_home }}\\oui\\.globalEnv.properties" }
+        - { src: "nodemanager.properties", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties" }
+        - { src: "setNMJavaHome.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd" }
+        - { src: "setDomainEnv.cmd", dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd" }
+      register: file_verification_results
+
+    - name: Display Copy Results Summary
       debug:
-        msg: "{{ copy_results }}"
+        msg: |
+          === WebLogic Files Update Summary ===
+          Files Checked: {{ file_check_results.results | length }}
+          Files Replaced: {{ copy_results.results | default([]) | length }}
+          Files Created: {{ copy_new_results.results | default([]) | length }}
+          Verification: {{ file_verification_results.results | map(attribute='stdout_lines') | list }}
 
     ### Uninstall Existing Java (Safe, Tolerant)
     - name: Uninstall existing Java versions
@@ -172,3 +262,53 @@
     - name: Display Java Version
       debug:
         msg: "{{ java_version_output.stdout_lines }}"
+
+  post_tasks:
+    - name: Log Jenkins Pipeline Completion
+      debug:
+        msg: |
+          === Jenkins Pipeline Execution Completed ===
+          Build Number: {{ jenkins_build_number }}
+          Job Name: {{ jenkins_job_name }}
+          Target Host: {{ inventory_hostname }}
+          Environment: PROD
+          Completion Time: {{ ansible_date_time.iso8601 }}
+          Status: SUCCESS
+          
+    - name: Generate Execution Summary Report
+      set_fact:
+        execution_summary:
+          host: "{{ inventory_hostname }}"
+          environment: "PROD"
+          jenkins_build: "{{ jenkins_build_number }}"
+          backup_files: "{{ backup_results.results | length }}"
+          files_replaced: "{{ copy_results.results | default([]) | length }}"
+          files_created: "{{ copy_new_results.results | default([]) | length }}"
+          java_uninstalled: "{{ uninstall_java_result.stdout_lines | length }}"
+          java_installed: "{{ java_install_dir }}"
+          weblogic_version: "{{ weblogic_version_output.stdout_lines | first | default('N/A') }}"
+          java_version: "{{ java_version_output.stdout_lines | first | default('N/A') }}"
+          execution_time: "{{ ansible_date_time.iso8601 }}"
+          
+    - name: Display Final Execution Summary
+      debug:
+        msg: |
+          === FINAL EXECUTION SUMMARY ===
+          Host: {{ execution_summary.host }}
+          Environment: {{ execution_summary.environment }}
+          Jenkins Build: {{ execution_summary.jenkins_build }}
+          Backup Files: {{ execution_summary.backup_files }}
+          Files Replaced: {{ execution_summary.files_replaced }}
+          Files Created: {{ execution_summary.files_created }}
+          Java Uninstalled: {{ execution_summary.java_uninstalled }}
+          Java Installation Path: {{ execution_summary.java_installed }}
+          WebLogic Version: {{ execution_summary.weblogic_version }}
+          Java Version: {{ execution_summary.java_version }}
+          Execution Time: {{ execution_summary.execution_time }}
+          
+    - name: Create Jenkins Pipeline Status File
+      win_file:
+        path: "C:\\temp\\jenkins_pipeline_status.json"
+        state: file
+        content: "{{ execution_summary | to_json }}"
+      ignore_errors: yes
