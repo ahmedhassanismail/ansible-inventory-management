@@ -1,6 +1,6 @@
 ---
-- name: Backup, Replace WebLogic Files, Uninstall & Install Java on Windows Server
-  hosts: prod_weblogic_win
+- name: Backup, Replace WebLogic Files, Uninstall & Install Java on Windows Server - UAT Environment
+  hosts: uat_weblogic_win
   gather_facts: no
   
   vars:
