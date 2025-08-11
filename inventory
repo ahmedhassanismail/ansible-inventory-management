@@ -48,18 +48,19 @@ redhat_prod_takaful
 
 [redhat_prod_ncci]
 # Add your production RedHat NCCI WebLogic servers here
-# Example: prod-ncci-01 ansible_host=192.168.1.40
-# Example: prod-ncci-02 ansible_host=192.168.1.41
+HQV-LV-APPP01.tawn.com ansible_host=10.24.11.65
 
 [redhat_prod_wasel]
 # Add your production RedHat Wasel WebLogic servers here
-# Example: prod-wasel-01 ansible_host=192.168.1.50
-# Example: prod-wasel-02 ansible_host=192.168.1.51
+HQV-WLS-WSLP01.tawn.com ansible_host=172.16.10.11
+HQV-WLS-WSLP02.tawn.com ansible_host=172.16.10.12
+
 
 [redhat_prod_takaful]
 # Add your production RedHat Takaful WebLogic servers here
+HQV-TKFL-APPP01.TAWN.COM ansible_host=10.24.1.48
+HQV-TKFL-APPP02.TAWN.COM ansible_host=10.24.1.49
 
-# Takaful variables are defined in group_vars/takaful.yml
 
 [redhat_prod_tomcat:children]
 redhat_prod_docmosis
@@ -74,8 +75,17 @@ redhat_prod_marine
 
 [redhat_prod_digital_tomcat]
 # Add your production RedHat Digital Tomcat servers here
-# Example: prod-digital-tomcat-01 ansible_host=192.168.1.70
-# Example: prod-digital-tomcat-02 ansible_host=192.168.1.71
+HQV-DH-WEBP11.tawn.com ansible_host=172.16.10.46
+HQV-DH-WEBP12.tawn.com ansible_host=172.16.10.47
+HQV-DH-WEBP01.tawn.com ansible_host=172.16.10.99
+HQV-DH-WEBP02.tawn.com ansible_host=172.16.10.97
+HQV-DH-WEBP03.tawn.com ansible_host=172.16.10.96
+HQV-DH-WEBP04.tawn.com ansible_host=172.16.10.95
+HQV-DH-WEBP05.tawn.com ansible_host=172.16.10.94
+HQV-DH-WEBP06.tawn.com ansible_host=172.16.10.93
+HQV-DH-WEBP07.tawn.com ansible_host=172.16.10.92
+HQV-DH-WEBP08.tawn.com ansible_host=172.16.10.90
+
 
 [redhat_prod_filenet]
 # Add your production RedHat FileNet Tomcat servers here
@@ -106,8 +116,9 @@ redhat_prod_digital_httpd
 
 [redhat_prod_digital_httpd]
 # Add your production RedHat Digital HTTPD servers here
-# Example: prod-digital-httpd-01 ansible_host=192.168.1.120
-# Example: prod-digital-httpd-02 ansible_host=192.168.1.121
+HQV-DH-WEBP09.tawuniya.com ansible_host=172.16.10.44
+HQV-DH-WEBP10.tawuniya.com ansible_host=172.16.10.45
+
 
 # Disaster Recovery RedHat Servers
 [redhat_dr:children]
@@ -232,8 +243,9 @@ redhat_test_takaful
 
 [redhat_test_ncci]
 # Add your test RedHat NCCI WebLogic servers here
-# Example: test-ncci-01 ansible_host=192.168.3.40
-# Example: test-ncci-02 ansible_host=192.168.3.41
+HQV-LV-APPP02.tawn.com ansible_host=10.24.11.86 
+HQV-QC-STRT01.TAWN.COM ansible_host=10.24.7.72  
+
 
 [redhat_test_wasel]
 # Add your test RedHat Wasel WebLogic servers here
@@ -411,18 +423,28 @@ windows_prod_takaful
 
 [windows_prod_medgo]
 # Add your production Windows MedGo WebLogic servers here
-# Example: prod-win-medgo-01 ansible_host=192.168.1.130
-# Example: prod-win-medgo-02 ansible_host=192.168.1.131
+HQV-MEG-APPP01.TAWN.COM ansible_host=10.24.1.27
+HQV-MEG-APPP02.TAWN.COM ansible_host=10.24.8.34
+HQV-WLS-APPP01.TAWN.COM ansible_host=10.24.11.63
+HQV-WLS-APPP02.TAWN.COM ansible_host=10.24.1.38
+TAW10GAS.TAWN.COM ansible_host=10.24.8.11
+TWLS01.TAWN.COM ansible_host=10.24.1.22
+TWLS02.TAWN.COM ansible_host=10.24.1.26
+TWLS03.TAWN.COM ansible_host=10.24.1.23
+TWLS04.TAWN.COM ansible_host=10.24.1.24
 
 [windows_prod_external_report]
 # Add your production Windows External Report WebLogic servers here
-# Example: prod-win-external-report-01 ansible_host=192.168.1.140
-# Example: prod-win-external-report-02 ansible_host=192.168.1.141
+hqv-wls-exrp01.tawn.com ansible_host=172.16.10.19
+HQV-WLS-EXRP02.TAWN.COM ansible_host=172.16.10.20
+HQV-WLS-EXRP03.TAWN.COM ansible_host=172.16.10.26
+HQV-WLS-EXRP04.TAWN.COM ansible_host=172.16.10.37
+HQV-WLS-EXRP05.TAWN.COM ansible_host=172.16.10.38
 
 [windows_prod_batch]
 # Add your production Windows Batch WebLogic servers here
-# Example: prod-win-batch-01 ansible_host=192.168.1.150
-# Example: prod-win-batch-02 ansible_host=192.168.1.151
+HQV-PTCH-12CP01.TAWN.COM ansible_host=10.24.11.89
+HQV-PTCH-12CP02.TAWN.COM ansible_host=10.24.11.35
 
 [windows_prod_ncci]
 # Add your production Windows NCCI WebLogic servers here
@@ -479,8 +501,8 @@ windows_prod_digital_httpd
 
 [windows_prod_teammate]
 # Add your production Windows Teammate HTTPD servers here
-# Example: prod-win-teammate-01 ansible_host=192.168.1.230
-# Example: prod-win-teammate-02 ansible_host=192.168.1.231
+HQV-TM-AMSP01.TAWN.COM ansible_host=10.24.2.155
+HQV-TM-AMST01.TAWN.COM ansible_host=10.24.7.49
 
 [windows_prod_digital_httpd]
 # Add your production Windows Digital HTTPD servers here
@@ -610,10 +632,9 @@ windows_test_wasel
 windows_test_takaful
 
 [windows_test_medgo]
-DRV-DH-SSOD01.TAWN.COM ansible_host=10.7.250.19
-DRV-QC-SIT01.TAWN.COM ansible_host=10.7.252.11
-hqv-wls-intu01.tawn.com ansible_host=10.24.7.80
-HQV-WLS-EXT01.TAWN.COM ansible_host=10.24.7.64
+HQV-MEG-APPT01.TAWN.COM ansible_host=10.24.7.175
+HQV-ORC-RPTT01.TAWN.COM ansible_host=10.24.7.97
+Oracle-DADs-UAT.TAWN.COM ansible_host=10.24.7.56
 
 
 
