@@ -1,0 +1,27 @@
+---
+# Docmosis Application Configuration - Production Environment
+# Tomcat Middleware
+
+application_name: "Docmosis"
+environment: "PROD"
+middleware_type: "Tomcat"
+business_line: "Document Management"
+
+# Application-specific variables
+app_port: 8080
+app_context: "/docmosis"
+deployment_mode: "production"
+
+# Server configuration
+catalina_opts: "-Xms1g -Xmx2g"
+max_threads: 200
+min_spare_threads: 10
+
+# Document processing
+max_file_size: "100MB"
+supported_formats: ["PDF", "DOCX", "XLSX"]
+temp_directory: "/tmp/docmosis"
+
+# Integration settings
+enable_cloud_rendering: true
+cloud_api_key: "{{ vault_cloud_api_key }}"

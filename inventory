@@ -1,0 +1,1181 @@
+# Ansible Inventory File
+# This file defines the hosts and groups for Ansible
+# Organized by environment, operating system, and specific application names
+
+[all:vars]
+ansible_connection=local
+ansible_python_interpreter=python
+
+# RedHat Servers
+[redhat:children]
+redhat_prod
+redhat_dr
+redhat_test
+redhat_dev
+redhat_uat
+
+# RedHat variables are defined in group_vars/redhat.yml
+
+# Production RedHat Servers
+[redhat_prod:children]
+redhat_prod_weblogic
+redhat_prod_tomcat
+redhat_prod_jboss
+redhat_prod_httpd
+
+[redhat_prod_weblogic:children]
+redhat_prod_medgo
+redhat_prod_external_report
+redhat_prod_batch
+redhat_prod_ncci
+redhat_prod_wasel
+redhat_prod_takaful
+
+[redhat_prod_medgo]
+# Add your production RedHat MedGo WebLogic servers here
+# Example: prod-medgo-01 ansible_host=192.168.1.10
+# Example: prod-medgo-02 ansible_host=192.168.1.11
+
+[redhat_prod_external_report]
+# Add your production RedHat External Report WebLogic servers here
+# Example: prod-external-report-01 ansible_host=192.168.1.20
+# Example: prod-external-report-02 ansible_host=192.168.1.21
+
+[redhat_prod_batch]
+# Add your production RedHat Batch WebLogic servers here
+# Example: prod-batch-01 ansible_host=192.168.1.30
+# Example: prod-batch-02 ansible_host=192.168.1.31
+
+[redhat_prod_ncci]
+# Add your production RedHat NCCI WebLogic servers here
+# Example: prod-ncci-01 ansible_host=192.168.1.40
+# Example: prod-ncci-02 ansible_host=192.168.1.41
+
+[redhat_prod_wasel]
+# Add your production RedHat Wasel WebLogic servers here
+# Example: prod-wasel-01 ansible_host=192.168.1.50
+# Example: prod-wasel-02 ansible_host=192.168.1.51
+
+[redhat_prod_takaful]
+# Add your production RedHat Takaful WebLogic servers here
+
+# Takaful variables are defined in group_vars/takaful.yml
+
+[redhat_prod_tomcat:children]
+redhat_prod_docmosis
+redhat_prod_digital_tomcat
+redhat_prod_filenet
+redhat_prod_marine
+
+[redhat_prod_docmosis]
+# Add your production RedHat Docmosis Tomcat servers here
+# Example: prod-docmosis-01 ansible_host=192.168.1.60
+# Example: prod-docmosis-02 ansible_host=192.168.1.61
+
+[redhat_prod_digital_tomcat]
+# Add your production RedHat Digital Tomcat servers here
+# Example: prod-digital-tomcat-01 ansible_host=192.168.1.70
+# Example: prod-digital-tomcat-02 ansible_host=192.168.1.71
+
+[redhat_prod_filenet]
+# Add your production RedHat FileNet Tomcat servers here
+# Example: prod-filenet-01 ansible_host=192.168.1.80
+# Example: prod-filenet-02 ansible_host=192.168.1.81
+
+[redhat_prod_marine]
+# Add your production RedHat Marine Tomcat servers here
+# Example: prod-marine-01 ansible_host=192.168.1.90
+# Example: prod-marine-02 ansible_host=192.168.1.91
+
+[redhat_prod_jboss:children]
+redhat_prod_ebusiness
+
+[redhat_prod_ebusiness]
+# Add your production RedHat eBusiness JBoss servers here
+# Example: prod-ebusiness-01 ansible_host=192.168.1.100
+# Example: prod-ebusiness-02 ansible_host=192.168.1.101
+
+[redhat_prod_httpd:children]
+redhat_prod_teammate
+redhat_prod_digital_httpd
+
+[redhat_prod_teammate]
+# Add your production RedHat Teammate HTTPD servers here
+# Example: prod-teammate-01 ansible_host=192.168.1.110
+# Example: prod-teammate-02 ansible_host=192.168.1.111
+
+[redhat_prod_digital_httpd]
+# Add your production RedHat Digital HTTPD servers here
+# Example: prod-digital-httpd-01 ansible_host=192.168.1.120
+# Example: prod-digital-httpd-02 ansible_host=192.168.1.121
+
+# Disaster Recovery RedHat Servers
+[redhat_dr:children]
+redhat_dr_weblogic
+redhat_dr_tomcat
+redhat_dr_jboss
+redhat_dr_httpd
+
+[redhat_dr_weblogic:children]
+redhat_dr_medgo
+redhat_dr_external_report
+redhat_dr_batch
+redhat_dr_ncci
+redhat_dr_wasel
+redhat_dr_takaful
+
+[redhat_dr_medgo]
+# Add your DR RedHat MedGo WebLogic servers here
+# Example: dr-medgo-01 ansible_host=192.168.2.10
+# Example: dr-medgo-02 ansible_host=192.168.2.11
+
+[redhat_dr_external_report]
+# Add your DR RedHat External Report WebLogic servers here
+# Example: dr-external-report-01 ansible_host=192.168.2.20
+# Example: dr-external-report-02 ansible_host=192.168.2.21
+
+[redhat_dr_batch]
+# Add your DR RedHat Batch WebLogic servers here
+# Example: dr-batch-01 ansible_host=192.168.2.30
+# Example: dr-batch-02 ansible_host=192.168.2.31
+
+[redhat_dr_ncci]
+DRV-LV-APPP01.tawn.com ansible_host=10.7.1.30
+
+[redhat_dr_wasel]
+DRV-WLS-APPP01.tawn.com ansible_host=172.19.40.36
+
+[redhat_dr_takaful]
+# Add your DR RedHat Takaful WebLogic servers here
+
+# Takaful variables are defined in group_vars/takaful.yml
+
+[redhat_dr_tomcat:children]
+redhat_dr_docmosis
+redhat_dr_digital_tomcat
+redhat_dr_filenet
+redhat_dr_marine
+
+[redhat_dr_docmosis]
+# Add your DR RedHat Docmosis Tomcat servers here
+# Example: dr-docmosis-01 ansible_host=192.168.2.60
+# Example: dr-docmosis-02 ansible_host=192.168.2.61
+
+[redhat_dr_digital_tomcat]
+DRV-DH-APPP01.tawn.com ansible_host=10.7.1.57
+DRV-DH-WEBP01.tawn.com ansible_host=172.19.40.81
+DRV-DH-WEBP02.tawn.com ansible_host=172.19.40.80
+DRV-DH-WEBP03.tawn.com ansible_host=172.19.40.79
+DRV-DH-WEBP04.tawn.com ansible_host=172.19.40.78
+
+[redhat_dr_filenet]
+# Add your DR RedHat FileNet Tomcat servers here
+# Example: dr-filenet-01 ansible_host=192.168.2.80
+# Example: dr-filenet-02 ansible_host=192.168.2.81
+
+[redhat_dr_marine]
+# Add your DR RedHat Marine Tomcat servers here
+# Example: dr-marine-01 ansible_host=192.168.2.90
+# Example: dr-marine-02 ansible_host=192.168.2.91
+
+[redhat_dr_jboss:children]
+redhat_dr_ebusiness
+
+[redhat_dr_ebusiness]
+# Add your DR RedHat eBusiness JBoss servers here
+# Example: dr-ebusiness-01 ansible_host=192.168.2.100
+# Example: dr-ebusiness-02 ansible_host=192.168.2.101
+
+[redhat_dr_httpd:children]
+redhat_dr_teammate
+redhat_dr_digital_httpd
+
+[redhat_dr_teammate]
+# Add your DR RedHat Teammate HTTPD servers here
+# Example: dr-teammate-01 ansible_host=192.168.2.110
+# Example: dr-teammate-02 ansible_host=192.168.2.111
+
+[redhat_dr_digital_httpd]
+# Add your DR RedHat Digital HTTPD servers here
+# Example: dr-digital-httpd-01 ansible_host=192.168.2.120
+# Example: dr-digital-httpd-02 ansible_host=192.168.2.121
+
+# Test RedHat Servers
+[redhat_test:children]
+redhat_test_weblogic
+redhat_test_tomcat
+redhat_test_jboss
+redhat_test_httpd
+
+[redhat_test_weblogic:children]
+redhat_test_medgo
+redhat_test_external_report
+redhat_test_batch
+redhat_test_ncci
+redhat_test_wasel
+redhat_test_takaful
+
+[redhat_test_medgo]
+# Add your test RedHat MedGo WebLogic servers here
+# Example: test-medgo-01 ansible_host=192.168.3.10
+# Example: test-medgo-02 ansible_host=192.168.3.11
+
+[redhat_test_external_report]
+# Add your test RedHat External Report WebLogic servers here
+# Example: test-external-report-01 ansible_host=192.168.3.20
+# Example: test-external-report-02 ansible_host=192.168.3.21
+
+[redhat_test_batch]
+# Add your test RedHat Batch WebLogic servers here
+# Example: test-batch-01 ansible_host=192.168.3.30
+# Example: test-batch-02 ansible_host=192.168.3.31
+
+[redhat_test_ncci]
+# Add your test RedHat NCCI WebLogic servers here
+# Example: test-ncci-01 ansible_host=192.168.3.40
+# Example: test-ncci-02 ansible_host=192.168.3.41
+
+[redhat_test_wasel]
+# Add your test RedHat Wasel WebLogic servers here
+# Example: test-wasel-01 ansible_host=192.168.3.50
+# Example: test-wasel-02 ansible_host=192.168.3.51
+
+[redhat_test_takaful]
+# Add your test RedHat Takaful WebLogic servers here
+
+# Takaful variables are defined in group_vars/takaful.yml
+
+[redhat_test_tomcat:children]
+redhat_test_docmosis
+redhat_test_digital_tomcat
+redhat_test_filenet
+redhat_test_marine
+
+[redhat_test_docmosis]
+# Add your test RedHat Docmosis Tomcat servers here
+# Example: test-docmosis-01 ansible_host=192.168.3.60
+# Example: test-docmosis-02 ansible_host=192.168.3.61
+
+[redhat_test_digital_tomcat]
+HQV-DH-APPT01.TAWN.COM ansible_host=10.24.7.170
+
+[redhat_test_filenet]
+# Add your test RedHat FileNet Tomcat servers here
+# Example: test-filenet-01 ansible_host=192.168.3.80
+# Example: test-filenet-02 ansible_host=192.168.3.81
+
+[redhat_test_marine]
+# Add your test RedHat Marine Tomcat servers here
+# Example: test-marine-01 ansible_host=192.168.3.90
+# Example: test-marine-02 ansible_host=192.168.3.91
+
+[redhat_test_jboss:children]
+redhat_test_ebusiness
+
+[redhat_test_ebusiness]
+# Add your test RedHat eBusiness JBoss servers here
+# Example: test-ebusiness-01 ansible_host=192.168.3.100
+# Example: test-ebusiness-02 ansible_host=192.168.3.101
+
+[redhat_test_httpd:children]
+redhat_test_teammate
+redhat_test_digital_httpd
+
+[redhat_test_teammate]
+# Add your test RedHat Teammate HTTPD servers here
+# Example: test-teammate-01 ansible_host=192.168.3.110
+# Example: test-teammate-02 ansible_host=192.168.3.111
+
+[redhat_test_digital_httpd]
+# Add your test RedHat Digital HTTPD servers here
+# Example: test-digital-httpd-01 ansible_host=192.168.3.120
+# Example: test-digital-httpd-02 ansible_host=192.168.3.121
+
+# Development RedHat Servers
+[redhat_dev:children]
+redhat_dev_weblogic
+redhat_dev_tomcat
+redhat_dev_jboss
+redhat_dev_httpd
+
+[redhat_dev_weblogic:children]
+redhat_dev_medgo
+redhat_dev_external_report
+redhat_dev_batch
+redhat_dev_ncci
+redhat_dev_wasel
+redhat_dev_takaful
+
+[redhat_dev_medgo]
+# Add your development RedHat MedGo WebLogic servers here
+# Example: dev-medgo-01 ansible_host=192.168.4.10
+# Example: dev-medgo-02 ansible_host=192.168.4.11
+
+[redhat_dev_external_report]
+# Add your development RedHat External Report WebLogic servers here
+# Example: dev-external-report-01 ansible_host=192.168.4.20
+# Example: dev-external-report-02 ansible_host=192.168.4.21
+
+[redhat_dev_batch]
+# Add your development RedHat Batch WebLogic servers here
+# Example: dev-batch-01 ansible_host=192.168.4.30
+# Example: dev-batch-02 ansible_host=192.168.4.31
+
+[redhat_dev_ncci]
+# Add your development RedHat NCCI WebLogic servers here
+# Example: dev-ncci-01 ansible_host=192.168.4.40
+# Example: dev-ncci-02 ansible_host=192.168.4.41
+
+[redhat_dev_wasel]
+# Add your development RedHat Wasel WebLogic servers here
+# Example: dev-wasel-01 ansible_host=192.168.4.50
+# Example: dev-wasel-02 ansible_host=192.168.4.51
+
+[redhat_dev_takaful]
+HQV-TKFL-APPD01.tawn.com ansible_host=10.24.6.56
+
+# Takaful variables are defined in group_vars/takaful.yml
+
+[redhat_dev_tomcat:children]
+redhat_dev_docmosis
+redhat_dev_digital_tomcat
+redhat_dev_filenet
+redhat_dev_marine
+
+[redhat_dev_docmosis]
+# Add your development RedHat Docmosis Tomcat servers here
+# Example: dev-docmosis-01 ansible_host=192.168.4.60
+# Example: dev-docmosis-02 ansible_host=192.168.4.61
+
+[redhat_dev_digital_tomcat]
+# Add your development RedHat Digital Tomcat servers here
+# Example: dev-digital-tomcat-01 ansible_host=192.168.4.70
+# Example: dev-digital-tomcat-02 ansible_host=192.168.4.71
+
+[redhat_dev_filenet]
+# Add your development RedHat FileNet Tomcat servers here
+# Example: dev-filenet-01 ansible_host=192.168.4.80
+# Example: dev-filenet-02 ansible_host=192.168.4.81
+
+[redhat_dev_marine]
+# Add your development RedHat Marine Tomcat servers here
+# Example: dev-marine-01 ansible_host=192.168.4.90
+# Example: dev-marine-02 ansible_host=192.168.4.91
+
+[redhat_dev_jboss:children]
+redhat_dev_ebusiness
+
+[redhat_dev_ebusiness]
+# Add your development RedHat eBusiness JBoss servers here
+# Example: dev-ebusiness-01 ansible_host=192.168.4.100
+# Example: dev-ebusiness-02 ansible_host=192.168.4.101
+
+[redhat_dev_httpd:children]
+redhat_dev_teammate
+redhat_dev_digital_httpd
+
+[redhat_dev_teammate]
+# Add your development RedHat Teammate HTTPD servers here
+# Example: dev-teammate-01 ansible_host=192.168.4.110
+# Example: dev-teammate-02 ansible_host=192.168.4.111
+
+[redhat_dev_digital_httpd]
+# Add your development RedHat Digital HTTPD servers here
+# Example: dev-digital-httpd-01 ansible_host=192.168.4.120
+# Example: dev-digital-httpd-02 ansible_host=192.168.4.121
+
+# Windows Servers
+[windows:children]
+windows_prod
+windows_dr
+windows_test
+windows_dev
+uat_windows
+
+# Windows variables are defined in group_vars/windows.yml
+
+# Production Windows Servers
+[windows_prod:children]
+windows_prod_weblogic
+windows_prod_tomcat
+windows_prod_jboss
+windows_prod_httpd
+
+[windows_prod_weblogic:children]
+windows_prod_medgo
+windows_prod_external_report
+windows_prod_batch
+windows_prod_ncci
+windows_prod_wasel
+windows_prod_takaful
+
+[windows_prod_medgo]
+# Add your production Windows MedGo WebLogic servers here
+# Example: prod-win-medgo-01 ansible_host=192.168.1.130
+# Example: prod-win-medgo-02 ansible_host=192.168.1.131
+
+[windows_prod_external_report]
+# Add your production Windows External Report WebLogic servers here
+# Example: prod-win-external-report-01 ansible_host=192.168.1.140
+# Example: prod-win-external-report-02 ansible_host=192.168.1.141
+
+[windows_prod_batch]
+# Add your production Windows Batch WebLogic servers here
+# Example: prod-win-batch-01 ansible_host=192.168.1.150
+# Example: prod-win-batch-02 ansible_host=192.168.1.151
+
+[windows_prod_ncci]
+# Add your production Windows NCCI WebLogic servers here
+# Example: prod-win-ncci-01 ansible_host=192.168.1.160
+# Example: prod-win-ncci-02 ansible_host=192.168.1.161
+
+[windows_prod_wasel]
+# Add your production Windows Wasel WebLogic servers here
+# Example: prod-win-wasel-01 ansible_host=192.168.1.170
+# Example: prod-win-wasel-02 ansible_host=192.168.1.171
+
+[windows_prod_takaful]
+# Add your production Windows Takaful WebLogic servers here
+
+
+
+[windows_prod_tomcat:children]
+windows_prod_docmosis
+windows_prod_digital_tomcat
+windows_prod_filenet
+windows_prod_marine
+
+[windows_prod_docmosis]
+# Add your production Windows Docmosis Tomcat servers here
+# Example: prod-win-docmosis-01 ansible_host=192.168.1.180
+# Example: prod-win-docmosis-02 ansible_host=192.168.1.181
+
+[windows_prod_digital_tomcat]
+# Add your production Windows Digital Tomcat servers here
+# Example: prod-win-digital-tomcat-01 ansible_host=192.168.1.190
+# Example: prod-win-digital-tomcat-02 ansible_host=192.168.1.191
+
+[windows_prod_filenet]
+# Add your production Windows FileNet Tomcat servers here
+# Example: prod-win-filenet-01 ansible_host=192.168.1.200
+# Example: prod-win-filenet-02 ansible_host=192.168.1.201
+
+[windows_prod_marine]
+# Add your production Windows Marine Tomcat servers here
+# Example: prod-win-marine-01 ansible_host=192.168.1.210
+# Example: prod-win-marine-02 ansible_host=192.168.1.211
+
+[windows_prod_jboss:children]
+windows_prod_ebusiness
+
+[windows_prod_ebusiness]
+# Add your production Windows eBusiness JBoss servers here
+# Example: prod-win-ebusiness-01 ansible_host=192.168.1.220
+# Example: prod-win-ebusiness-02 ansible_host=192.168.1.221
+
+[windows_prod_httpd:children]
+windows_prod_teammate
+windows_prod_digital_httpd
+
+[windows_prod_teammate]
+# Add your production Windows Teammate HTTPD servers here
+# Example: prod-win-teammate-01 ansible_host=192.168.1.230
+# Example: prod-win-teammate-02 ansible_host=192.168.1.231
+
+[windows_prod_digital_httpd]
+# Add your production Windows Digital HTTPD servers here
+# Example: prod-win-digital-httpd-01 ansible_host=192.168.1.240
+# Example: prod-win-digital-httpd-02 ansible_host=192.168.1.241
+
+# Disaster Recovery Windows Servers
+[windows_dr:children]
+windows_dr_weblogic
+windows_dr_tomcat
+windows_dr_jboss
+windows_dr_httpd
+
+[windows_dr_weblogic:children]
+windows_dr_medgo
+windows_dr_external_report
+windows_dr_batch
+windows_dr_ncci
+windows_dr_wasel
+
+[windows_dr_medgo]
+DRV-MED-APPP01.TAWN.COM ansible_host=10.7.11.32
+DRV-MED-APPP02.TAWN.COM ansible_host=10.7.11.33
+DRV-MED-APPP03.TAWN.COM ansible_host=10.7.11.34
+DRV-MED-APPP04.TAWN.COM ansible_host=10.7.11.35
+DRV-MED-APPP05.TAWN.COM ansible_host=10.7.11.36
+DRV-WLS-INTP01.TAWN.COM ansible_host=10.7.11.15
+DRV-WLS-INTP02.TAWN.COM ansible_host=10.7.11.16
+
+
+
+[windows_dr_external_report]
+DRV-WLS-EXRP01.TAWN.COM ansible_host=172.19.40.35
+DRV-WLS-EXRP02.TAWN.COM ansible_host=172.19.40.91
+DRV-WLS-EXRP03.TAWN.COM ansible_host=172.19.40.93
+DRV-WLS-EXRP04.TAWN.COM ansible_host=172.19.40.92
+DRV-WLS-EXRP05.TAWN.COM ansible_host=172.19.40.90
+
+
+
+[windows_dr_batch]
+DRV-PTCH-12CP01.TAWN.COM ansible_host=10.7.11.41
+
+
+
+[windows_dr_ncci]
+# Add your DR Windows NCCI WebLogic servers here
+# Example: dr-win-ncci-01 ansible_host=192.168.2.160
+# Example: dr-win-ncci-02 ansible_host=192.168.2.161
+
+[windows_dr_wasel]
+# Add your DR Windows Wasel WebLogic servers here
+# Example: dr-win-wasel-01 ansible_host=192.168.2.170
+# Example: dr-win-wasel-02 ansible_host=192.168.2.171
+
+[windows_dr_takaful]
+# Add your DR Windows Takaful WebLogic servers here
+
+
+
+[windows_dr_tomcat:children]
+windows_dr_docmosis
+windows_dr_digital_tomcat
+windows_dr_filenet
+windows_dr_marine
+
+[windows_dr_docmosis]
+# Add your DR Windows Docmosis Tomcat servers here
+# Example: dr-win-docmosis-01 ansible_host=192.168.2.180
+# Example: dr-win-docmosis-02 ansible_host=192.168.2.181
+
+[windows_dr_digital_tomcat]
+# Add your DR Windows Digital Tomcat servers here
+# Example: dr-win-digital-tomcat-01 ansible_host=192.168.2.190
+# Example: dr-win-digital-tomcat-02 ansible_host=192.168.2.191
+
+[windows_dr_filenet]
+drv-fn-appp03.tawn.com ansible_host=10.7.1.20
+drv-fn-appp04.tawn.com ansible_host=10.7.1.67
+
+
+
+[windows_dr_marine]
+DRV-MRN-APPP01.TAWN.COM ansible_host=172.19.40.89
+
+
+
+[windows_dr_jboss:children]
+windows_dr_ebusiness
+
+[windows_dr_ebusiness]
+DRV-BUSS-SAPP01.TAWN.COM ansible_host=172.19.40.15
+DRV-BUSS-SAPP02.TAWN.COM ansible_host=172.19.40.22
+DRV-BUSS-SAPP03.TAWN.COM ansible_host=10.45.3.38
+DRV-BUSS-SAPP04.TAWN.COM ansible_host=10.45.3.39
+e-busscheduledr.tawn.com ansible_host=10.45.3.43
+
+
+
+[windows_dr_httpd:children]
+windows_dr_teammate
+windows_dr_digital_httpd
+
+[windows_dr_teammate]
+# Add your DR Windows Teammate HTTPD servers here
+# Example: dr-win-teammate-01 ansible_host=192.168.2.230
+# Example: dr-win-teammate-02 ansible_host=192.168.2.231
+
+[windows_dr_digital_httpd]
+# Add your DR Windows Digital HTTPD servers here
+# Example: dr-win-digital-httpd-01 ansible_host=192.168.2.240
+# Example: dr-win-digital-httpd-02 ansible_host=192.168.2.241
+
+# Test Windows Servers
+[windows_test:children]
+windows_test_weblogic
+windows_test_tomcat
+windows_test_jboss
+windows_test_httpd
+
+[windows_test_weblogic:children]
+windows_test_medgo
+windows_test_external_report
+windows_test_batch
+windows_test_ncci
+windows_test_wasel
+windows_test_takaful
+
+[windows_test_medgo]
+DRV-DH-SSOD01.TAWN.COM ansible_host=10.7.250.19
+DRV-QC-SIT01.TAWN.COM ansible_host=10.7.252.11
+hqv-wls-intu01.tawn.com ansible_host=10.24.7.80
+HQV-WLS-EXT01.TAWN.COM ansible_host=10.24.7.64
+
+
+
+[windows_test_external_report]
+# Add your test Windows External Report WebLogic servers here
+# Example: test-win-external-report-01 ansible_host=192.168.3.140
+# Example: test-win-external-report-02 ansible_host=192.168.3.141
+
+[windows_test_batch]
+# Add your test Windows Batch WebLogic servers here
+# Example: test-win-batch-01 ansible_host=192.168.3.150
+# Example: test-win-batch-02 ansible_host=192.168.3.151
+
+[windows_test_ncci]
+# Add your test Windows NCCI WebLogic servers here
+# Example: test-win-ncci-01 ansible_host=192.168.3.160
+# Example: test-win-ncci-02 ansible_host=192.168.3.161
+
+[windows_test_wasel]
+# Add your test Windows Wasel WebLogic servers here
+# Example: test-win-wasel-01 ansible_host=192.168.3.170
+# Example: test-win-wasel-02 ansible_host=192.168.3.171
+
+[windows_test_takaful]
+# Add your test Windows Takaful WebLogic servers here
+
+
+
+[windows_test_tomcat:children]
+windows_test_docmosis
+windows_test_digital_tomcat
+windows_test_filenet
+windows_test_marine
+
+[windows_test_docmosis]
+HQV-DOC-APPT01.TAWN.COM ansible_host=10.24.7.212
+
+
+
+[windows_test_digital_tomcat]
+# Add your test Windows Digital Tomcat servers here
+# Example: test-win-digital-tomcat-01 ansible_host=192.168.3.190
+# Example: test-win-digital-tomcat-02 ansible_host=192.168.3.191
+
+[windows_test_filenet]
+# Add your test Windows FileNet Tomcat servers here
+# Example: test-win-filenet-01 ansible_host=192.168.3.200
+# Example: test-win-filenet-02 ansible_host=192.168.3.201
+
+[windows_test_marine]
+# Add your test Windows Marine Tomcat servers here
+# Example: test-win-marine-01 ansible_host=192.168.3.210
+# Example: test-win-marine-02 ansible_host=192.168.3.211
+
+[windows_test_jboss:children]
+windows_test_ebusiness
+
+[windows_test_ebusiness]
+HQV-BTH-APPT01.TAWN.COM ansible_host=10.24.46.222
+HQV-EBS-SALT01.TAWN.COM ansible_host=10.24.46.223
+
+
+
+[windows_test_httpd:children]
+windows_test_teammate
+windows_test_digital_httpd
+
+[windows_test_teammate]
+# Add your test Windows Teammate HTTPD servers here
+# Example: test-win-teammate-01 ansible_host=192.168.3.230
+# Example: test-win-teammate-02 ansible_host=192.168.3.231
+
+[windows_test_digital_httpd]
+# Add your test Windows Digital HTTPD servers here
+# Example: test-win-digital-httpd-01 ansible_host=192.168.3.240
+# Example: test-win-digital-httpd-02 ansible_host=192.168.3.241
+
+# Development Windows Servers
+[windows_dev:children]
+windows_dev_weblogic
+windows_dev_tomcat
+windows_dev_jboss
+windows_dev_httpd
+
+[windows_dev_weblogic:children]
+windows_dev_medgo
+windows_dev_external_report
+windows_dev_batch
+windows_dev_ncci
+windows_dev_wasel
+windows_dev_takaful
+
+[windows_dev_medgo]
+DRV-QC-APID01.TAWN.COM ansible_host=10.7.250.15
+DRV-QC-CD01.TAWN.COM ansible_host=10.7.250.17
+DRV-QC-FD01.TAWN.COM ansible_host=10.7.250.16
+DRV-QC-PREPR01.TAWN.COM ansible_host=10.7.11.46
+HQV-MED-APPD01.TAWN.COM ansible_host=10.24.6.63
+HQV-MED-JNLPP01.TAWN.COM ansible_host=10.24.1.43
+DRV-MED-PNCD01.TAWN.COM ansible_host=10.7.250.18
+
+
+
+[windows_dev_external_report]
+# Add your development Windows External Report WebLogic servers here
+# Example: dev-win-external-report-01 ansible_host=192.168.4.140
+# Example: dev-win-external-report-02 ansible_host=192.168.4.141
+
+[windows_dev_batch]
+# Add your development Windows Batch WebLogic servers here
+# Example: dev-win-batch-01 ansible_host=192.168.4.150
+# Example: dev-win-batch-02 ansible_host=192.168.4.151
+
+[windows_dev_ncci]
+# Add your development Windows NCCI WebLogic servers here
+# Example: dev-win-ncci-01 ansible_host=192.168.4.160
+# Example: dev-win-ncci-02 ansible_host=192.168.4.161
+
+[windows_dev_wasel]
+# Add your development Windows Wasel WebLogic servers here
+# Example: dev-win-wasel-01 ansible_host=192.168.4.170
+# Example: dev-win-wasel-02 ansible_host=192.168.4.171
+
+[windows_dev_takaful]
+# Add your development Windows Takaful WebLogic servers here
+
+
+
+[windows_dev_tomcat:children]
+windows_dev_docmosis
+windows_dev_digital_tomcat
+windows_dev_filenet
+windows_dev_marine
+
+[windows_dev_docmosis]
+HQV-DOC-APPD01.TAWN.COM ansible_host=10.24.6.80
+
+
+
+[windows_dev_digital_tomcat]
+# Add your development Windows Digital Tomcat servers here
+# Example: dev-win-digital-tomcat-01 ansible_host=192.168.4.190
+# Example: dev-win-digital-tomcat-02 ansible_host=192.168.4.191
+
+[windows_dev_filenet]
+# Add your development Windows FileNet Tomcat servers here
+# Example: dev-win-filenet-01 ansible_host=192.168.4.200
+# Example: dev-win-filenet-02 ansible_host=192.168.4.201
+
+[windows_dev_marine]
+# Add your development Windows Marine Tomcat servers here
+# Example: dev-win-marine-01 ansible_host=192.168.4.210
+# Example: dev-win-marine-02 ansible_host=192.168.4.211
+
+[windows_dev_jboss:children]
+windows_dev_ebusiness
+
+[windows_dev_ebusiness]
+# Add your development Windows eBusiness JBoss servers here
+# Example: dev-win-ebusiness-01 ansible_host=192.168.4.220
+# Example: dev-win-ebusiness-02 ansible_host=192.168.4.221
+
+[windows_dev_httpd:children]
+windows_dev_teammate
+windows_dev_digital_httpd
+
+[windows_dev_teammate]
+# Add your development Windows Teammate HTTPD servers here
+# Example: dev-win-teammate-01 ansible_host=192.168.4.230
+# Example: dev-win-teammate-02 ansible_host=192.168.4.231
+
+[windows_dev_digital_httpd]
+# Add your development Windows Digital HTTPD servers here
+# Example: dev-win-digital-httpd-01 ansible_host=192.168.4.240
+# Example: dev-win-digital-httpd-02 ansible_host=192.168.4.241
+
+# UAT Environment
+[uat:children]
+uat_redhat
+uat_windows
+
+[uat_redhat:children]
+uat_redhat_weblogic
+uat_redhat_tomcat
+uat_redhat_jboss
+uat_redhat_httpd
+
+[uat_redhat_weblogic:children]
+uat_redhat_medgo
+uat_redhat_external_report
+uat_redhat_batch
+uat_redhat_ncci
+uat_redhat_wasel
+uat_redhat_takaful
+
+[uat_redhat_medgo]
+# Add your UAT RedHat MedGo WebLogic servers here
+
+[uat_redhat_external_report]
+# Add your UAT RedHat External Report WebLogic servers here
+
+[uat_redhat_batch]
+# Add your UAT RedHat Batch WebLogic servers here
+
+[uat_redhat_ncci]
+# Add your UAT RedHat NCCI WebLogic servers here
+
+[uat_redhat_wasel]
+# Add your UAT RedHat Wasel WebLogic servers here
+
+[uat_redhat_takaful]
+# Add your UAT RedHat Takaful WebLogic servers here
+
+# Takaful variables are defined in group_vars/takaful.yml
+
+[uat_redhat_tomcat:children]
+uat_redhat_docmosis
+uat_redhat_digital_tomcat
+uat_redhat_filenet
+uat_redhat_marine
+
+[uat_redhat_docmosis]
+# Add your UAT RedHat Docmosis Tomcat servers here
+
+[uat_redhat_digital_tomcat]
+HQV-DH-APPU01.tawn.com ansible_host=10.24.7.166
+
+[uat_redhat_filenet]
+# Add your UAT RedHat FileNet Tomcat servers here
+
+[uat_redhat_marine]
+# Add your UAT RedHat Marine Tomcat servers here
+
+[uat_redhat_jboss:children]
+uat_redhat_ebusiness
+
+[uat_redhat_ebusiness]
+# Add your UAT RedHat eBusiness JBoss servers here
+
+[uat_redhat_httpd:children]
+uat_redhat_teammate
+uat_redhat_digital_httpd
+
+[uat_redhat_teammate]
+# Add your UAT RedHat Teammate HTTPD servers here
+
+[uat_redhat_digital_httpd]
+# Add your UAT RedHat Digital HTTPD servers here
+
+[uat_windows:children]
+uat_windows_weblogic
+uat_windows_tomcat
+uat_windows_jboss
+uat_windows_httpd
+
+[uat_windows_weblogic:children]
+uat_windows_medgo
+uat_windows_external_report
+uat_windows_batch
+uat_windows_ncci
+uat_windows_wasel
+uat_windows_takaful
+
+[uat_windows_medgo]
+DRV-QC-UAT01.TAWN.COM ansible_host=10.7.248.17
+HQV-MEG-APPP03.TAWN.COM ansible_host=10.24.1.47
+
+
+
+[uat_windows_external_report]
+# Add your UAT Windows External Report WebLogic servers here
+
+[uat_windows_batch]
+# Add your UAT Windows Batch WebLogic servers here
+
+[uat_windows_ncci]
+# Add your UAT Windows NCCI WebLogic servers here
+
+[uat_windows_wasel]
+# Add your UAT Windows Wasel WebLogic servers here
+
+[uat_windows_takaful]
+# Add your UAT Windows Takaful WebLogic servers here
+
+
+
+[uat_windows_tomcat:children]
+uat_windows_docmosis
+uat_windows_digital_tomcat
+uat_windows_filenet
+uat_windows_marine
+
+[uat_windows_docmosis]
+HQV-DOC-APPU01.TAWN.COM ansible_host=10.24.7.211
+
+
+
+[uat_windows_digital_tomcat]
+# Add your UAT Windows Digital Tomcat servers here
+
+[uat_windows_filenet]
+hqv-fn-appu01.tawn.com ansible_host=10.24.7.130
+
+
+
+[uat_windows_marine]
+# Add your UAT Windows Marine Tomcat servers here
+
+[uat_windows_jboss:children]
+uat_windows_ebusiness
+
+[uat_windows_ebusiness]
+HQV-EBS-SALU01.TAWN.COM ansible_host=10.24.46.220
+HQV-EBS-ADMT01.TAWN.COM ansible_host=10.24.46.221
+
+
+
+[uat_windows_httpd:children]
+uat_windows_teammate
+uat_windows_digital_httpd
+
+[uat_windows_teammate]
+# Add your UAT Windows Teammate HTTPD servers here
+
+[uat_windows_digital_httpd]
+# Add your UAT Windows Digital HTTPD servers here
+
+# Application-Specific Groups (combines all environments and OS types)
+[medgo:children]
+redhat_prod_medgo
+redhat_dr_medgo
+redhat_test_medgo
+redhat_dev_medgo
+redhat_uat_medgo
+windows_prod_medgo
+windows_dr_medgo
+windows_test_medgo
+windows_dev_medgo
+uat_windows_medgo
+
+[external_report:children]
+redhat_prod_external_report
+redhat_dr_external_report
+redhat_test_external_report
+redhat_dev_external_report
+redhat_uat_external_report
+windows_prod_external_report
+windows_dr_external_report
+windows_test_external_report
+windows_dev_external_report
+uat_windows_external_report
+
+[batch:children]
+redhat_prod_batch
+redhat_dr_batch
+redhat_test_batch
+redhat_dev_batch
+redhat_uat_batch
+windows_prod_batch
+windows_dr_batch
+windows_test_batch
+windows_dev_batch
+uat_windows_batch
+
+[ncci:children]
+redhat_prod_ncci
+redhat_dr_ncci
+redhat_test_ncci
+redhat_dev_ncci
+redhat_uat_ncci
+windows_prod_ncci
+windows_dr_ncci
+windows_test_ncci
+windows_dev_ncci
+uat_windows_ncci
+
+[wasel:children]
+redhat_prod_wasel
+redhat_dr_wasel
+redhat_test_wasel
+redhat_dev_wasel
+redhat_uat_wasel
+windows_prod_wasel
+windows_dr_wasel
+windows_test_wasel
+windows_dev_wasel
+uat_windows_wasel
+
+[takaful:children]
+redhat_prod_takaful
+redhat_dr_takaful
+redhat_test_takaful
+redhat_dev_takaful
+redhat_uat_takaful
+windows_prod_takaful
+windows_dr_takaful
+windows_test_takaful
+windows_dev_takaful
+uat_windows_takaful
+
+[docmosis:children]
+redhat_prod_docmosis
+redhat_dr_docmosis
+redhat_test_docmosis
+redhat_dev_docmosis
+redhat_uat_docmosis
+windows_prod_docmosis
+windows_dr_docmosis
+windows_test_docmosis
+windows_dev_docmosis
+uat_windows_docmosis
+
+[digital_tomcat:children]
+redhat_prod_digital_tomcat
+redhat_dr_digital_tomcat
+redhat_test_digital_tomcat
+redhat_dev_digital_tomcat
+redhat_uat_digital_tomcat
+windows_prod_digital_tomcat
+windows_dr_digital_tomcat
+windows_test_digital_tomcat
+windows_dev_digital_tomcat
+uat_windows_digital_tomcat
+
+[filenet:children]
+redhat_prod_filenet
+redhat_dr_filenet
+redhat_test_filenet
+redhat_dev_filenet
+redhat_uat_filenet
+windows_prod_filenet
+windows_dr_filenet
+windows_test_filenet
+windows_dev_filenet
+uat_windows_filenet
+
+[marine:children]
+redhat_prod_marine
+redhat_dr_marine
+redhat_test_marine
+redhat_dev_marine
+redhat_uat_marine
+windows_prod_marine
+windows_dr_marine
+windows_test_marine
+windows_dev_marine
+uat_windows_marine
+
+[ebusiness:children]
+redhat_prod_ebusiness
+redhat_dr_ebusiness
+redhat_test_ebusiness
+redhat_dev_ebusiness
+redhat_uat_ebusiness
+windows_prod_ebusiness
+windows_dr_ebusiness
+windows_test_ebusiness
+windows_dev_ebusiness
+uat_windows_ebusiness
+
+[teammate:children]
+redhat_prod_teammate
+redhat_dr_teammate
+redhat_test_teammate
+redhat_dev_teammate
+redhat_uat_teammate
+windows_prod_teammate
+windows_dr_teammate
+windows_test_teammate
+windows_dev_teammate
+uat_windows_teammate
+
+[digital_httpd:children]
+redhat_prod_digital_httpd
+redhat_dr_digital_httpd
+redhat_test_digital_httpd
+redhat_dev_digital_httpd
+redhat_uat_digital_httpd
+windows_prod_digital_httpd
+windows_dr_digital_httpd
+windows_test_digital_httpd
+windows_dev_digital_httpd
+uat_windows_digital_httpd
+
+# Middleware Type Groups (combines all environments and OS types)
+[weblogic:children]
+redhat_prod_weblogic
+redhat_dr_weblogic
+redhat_test_weblogic
+redhat_dev_weblogic
+redhat_uat_weblogic
+windows_prod_weblogic
+windows_dr_weblogic
+windows_test_weblogic
+windows_dev_weblogic
+uat_windows_weblogic
+redhat_prod_takaful
+redhat_dr_takaful
+redhat_test_takaful
+redhat_dev_takaful
+redhat_uat_takaful
+
+[tomcat:children]
+redhat_prod_tomcat
+redhat_dr_tomcat
+redhat_test_tomcat
+redhat_dev_tomcat
+redhat_uat_tomcat
+windows_prod_tomcat
+windows_dr_tomcat
+windows_test_tomcat
+windows_dev_tomcat
+uat_windows_tomcat
+
+[jboss:children]
+redhat_prod_jboss
+redhat_dr_jboss
+redhat_test_jboss
+redhat_dev_jboss
+redhat_uat_jboss
+windows_prod_jboss
+windows_dr_jboss
+windows_test_jboss
+windows_dev_jboss
+uat_windows_jboss
+
+[httpd:children]
+redhat_prod_httpd
+redhat_dr_httpd
+redhat_test_httpd
+redhat_dev_httpd
+redhat_uat_httpd
+windows_prod_httpd
+windows_dr_httpd
+windows_test_httpd
+windows_dev_httpd
+uat_windows_httpd
+
+# Environment Groups (combines both OS types and all middleware)
+[prod:children]
+redhat_prod
+windows_prod
+
+[dr:children]
+redhat_dr
+windows_dr
+
+[test:children]
+redhat_test
+windows_test
+
+[dev:children]
+redhat_dev
+windows_dev
+
+[uat:children]
+uat_redhat
+uat_windows
+
+# Local development
+[localhost]
+127.0.0.1 ansible_connection=local
+
+[local]
+localhost ansible_connection=local

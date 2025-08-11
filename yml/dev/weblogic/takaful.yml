@@ -1,0 +1,32 @@
+---
+# Takaful Application Configuration - Development Environment
+# WebLogic Middleware
+
+application_name: "Takaful"
+environment: "DEV"
+middleware_type: "WebLogic"
+business_line: "Insurance"
+
+# Application-specific variables
+app_port: 7001
+app_context: "/takaful"
+deployment_mode: "development"
+
+# Server configuration
+min_heap_size: "512m"
+max_heap_size: "1g"
+thread_pool_size: 50
+
+# Database connection
+db_connection_pool: "TakafulDevPool"
+db_max_connections: 10
+
+# Development settings
+debug_enabled: true
+log_level: "DEBUG"
+enable_hot_deploy: true
+auto_redeploy: true
+
+# Development tools
+enable_jconsole: true
+enable_jvisualvm: true
