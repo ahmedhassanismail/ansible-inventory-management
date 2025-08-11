@@ -20,10 +20,20 @@ pipeline {
             defaultValue: '',
             description: 'Additional Ansible variables (optional)'
         )
+        string(
+            name: 'CUSTOM_CONFIG_FILE',
+            defaultValue: '',
+            description: 'Path to custom configuration file (e.g., weblogic_config_vars.yml)'
+        )
         booleanParam(
             name: 'DRY_RUN',
             defaultValue: false,
             description: 'Run in dry-run mode (check mode)'
+        )
+        booleanParam(
+            name: 'SHOW_CONFIG_PREVIEW',
+            defaultValue: true,
+            description: 'Show configuration changes preview before execution'
         )
     }
     
@@ -86,7 +96,13 @@ pipeline {
                     
                     // Build Ansible command
                     def ansibleCmd = "ansible-playbook -i ${ANSIBLE_INVENTORY} ${playbookPath}"
-                    
+
+                    // Add custom configuration file if provided
+                    if (params.CUSTOM_CONFIG_FILE) {
+                        ansibleCmd += " -e @${params.CUSTOM_CONFIG_FILE}"
+                        echo "✓ Using custom configuration file: ${params.CUSTOM_CONFIG_FILE}"
+                    }
+
                     // Add extra variables
                     if (params.ANSIBLE_EXTRA_VARS) {
                         ansibleCmd += " -e '${params.ANSIBLE_EXTRA_VARS}'"

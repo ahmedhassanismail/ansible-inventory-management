@@ -1,0 +1,32 @@
+---
+# WebLogic Configuration Variables Override Example
+# This file can be used to customize regexp patterns and replacement values
+# Usage: ansible-playbook -i inventory upgrade_Java_weblogic.yml -e @weblogic_config_vars.yml
+
+# Custom regexp patterns for different environments or configurations
+java_home_regexp: "^#.*Java.*Home.*|^JAVA_HOME=.*"
+weblogic_home_regexp: "^#.*WebLogic.*Home.*|^WL_HOME=.*"
+nodemanager_java_home_regexp: "^JavaHome=.*|^#.*JavaHome.*"
+setnmjavahome_regexp: "^set.*JAVA_HOME.*|^#.*JAVA_HOME.*"
+setdomainenv_java_home_regexp: "^set.*JAVA_HOME.*|^#.*JAVA_HOME.*"
+setdomainenv_path_regexp: "^set.*PATH.*|^#.*PATH.*"
+
+# Alternative patterns for different WebLogic versions
+# For WebLogic 12c
+# java_home_regexp: "^#.*Java.*Home.*|^JAVA_HOME=.*|^ORACLE_HOME=.*"
+
+# For WebLogic 14c
+# java_home_regexp: "^#.*Java.*Home.*|^JAVA_HOME=.*|^GRAALVM_HOME=.*"
+
+# Custom replacement values
+# java_install_dir: "E:\\jdk-11.0.12"
+# oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home_14c"
+
+# Environment-specific overrides
+# For DR environment
+# backup_dir: "F:\\Oracle\\backup"
+# weblogic_domain: "dr_domain"
+
+# For TEST environment
+# backup_dir: "D:\\Oracle\\backup"
+# weblogic_domain: "test_domain"

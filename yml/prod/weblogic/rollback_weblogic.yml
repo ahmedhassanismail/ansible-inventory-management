@@ -1,0 +1,189 @@
+---
+- name: Rollback WebLogic Configuration Files - PROD Environment
+  hosts: prod_weblogic_win
+  gather_facts: no
+  
+  # Jenkins Pipeline Compatibility
+  serial: 1  # Execute one host at a time for better control
+  max_fail_percentage: 0  # Fail fast if any host fails
+  
+  vars:
+    # Configurable paths - can be overridden per environment
+    oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+    backup_dir: "E:\\Oracle\\backup"
+    weblogic_domain: "base_domain"
+    
+    # Jenkins Pipeline Variables
+    jenkins_build_number: "{{ jenkins_build_number | default('manual') }}"
+    jenkins_job_name: "{{ jenkins_job_name | default('ansible-weblogic-rollback') }}"
+    
+  pre_tasks:
+    - name: Log Jenkins Pipeline Rollback Start
+      debug:
+        msg: |
+          === Jenkins Pipeline Rollback Started ===
+          Build Number: {{ jenkins_build_number }}
+          Job Name: {{ jenkins_job_name }}
+          Target Host: {{ inventory_hostname }}
+          Environment: PROD
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          Action: ROLLBACK
+          
+  tasks:
+    ### List Available Backups
+    - name: List available backup files
+      win_shell: |
+        $backupDir = "{{ backup_dir }}"
+        if (Test-Path $backupDir) {
+          $backups = Get-ChildItem -Path $backupDir -Filter "*_*" | Sort-Object LastWriteTime -Descending
+          Write-Output "Available backups in $backupDir:"
+          foreach ($backup in $backups) {
+            Write-Output "  $($backup.Name) - Created: $($backup.LastWriteTime)"
+          }
+        } else {
+          Write-Output "No backup directory found: $backupDir"
+        }
+      register: backup_list_result
+
+    - name: Display Available Backups
+      debug:
+        msg: "{{ backup_list_result.stdout_lines }}"
+
+    ### Find Latest Backup for Each File Type
+    - name: Find latest backup for each file type
+      win_shell: |
+        $backupDir = "{{ backup_dir }}"
+        $fileTypes = @(
+          ".globalEnv.properties",
+          "nodemanager.properties", 
+          "setNMJavaHome.cmd",
+          "setDomainEnv.cmd"
+        )
+        
+        $latestBackups = @{}
+        
+        foreach ($fileType in $fileTypes) {
+          $pattern = "*$fileType*"
+          $backups = Get-ChildItem -Path $backupDir -Filter $pattern | Sort-Object LastWriteTime -Descending
+          if ($backups.Count -gt 0) {
+            $latestBackups[$fileType] = $backups[0].FullName
+            Write-Output "$fileType -> $($backups[0].Name)"
+          } else {
+            Write-Output "$fileType -> No backup found"
+          }
+        }
+        
+        # Convert to JSON for Ansible
+        $latestBackups | ConvertTo-Json
+      register: latest_backups_result
+
+    - name: Parse latest backups
+      set_fact:
+        latest_backups: "{{ latest_backups_result.stdout | from_json }}"
+
+    ### Restore WebLogic Configuration Files
+    - name: Restore .globalEnv.properties from backup
+      win_copy:
+        src: "{{ latest_backups['.globalEnv.properties'] }}"
+        dest: "{{ oracle_home }}\\oui\\.globalEnv.properties"
+        force: yes
+      when: 
+        - latest_backups['.globalEnv.properties'] is defined
+        - latest_backups['.globalEnv.properties'] != ""
+      register: restore_globalenv_result
+
+    - name: Restore nodemanager.properties from backup
+      win_copy:
+        src: "{{ latest_backups['nodemanager.properties'] }}"
+        dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties"
+        force: yes
+      when: 
+        - latest_backups['nodemanager.properties'] is defined
+        - latest_backups['nodemanager.properties'] != ""
+      register: restore_nodemanager_result
+
+    - name: Restore setNMJavaHome.cmd from backup
+      win_copy:
+        src: "{{ latest_backups['setNMJavaHome.cmd'] }}"
+        dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd"
+        force: yes
+      when: 
+        - latest_backups['setNMJavaHome.cmd'] is defined
+        - latest_backups['setNMJavaHome.cmd'] != ""
+      register: restore_setnmjavahome_result
+
+    - name: Restore setDomainEnv.cmd from backup
+      win_copy:
+        src: "{{ latest_backups['setDomainEnv.cmd'] }}"
+        dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
+        force: yes
+      when: 
+        - latest_backups['setDomainEnv.cmd'] is defined
+        - latest_backups['setDomainEnv.cmd'] != ""
+      register: restore_setdomainenv_result
+
+    ### Verify Restored Files
+    - name: Verify restored files
+      win_shell: |
+        $files = @(
+          "{{ oracle_home }}\\oui\\.globalEnv.properties",
+          "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties",
+          "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd",
+          "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
+        )
+        
+        foreach ($file in $files) {
+          if (Test-Path $file) {
+            $info = Get-Item $file
+            Write-Output "✓ $file - Size: $($info.Length) bytes - Modified: $($info.LastWriteTime)"
+          } else {
+            Write-Output "✗ $file - NOT FOUND"
+          }
+        }
+      register: restore_verification_result
+
+    - name: Display Restore Verification
+      debug:
+        msg: "{{ restore_verification_result.stdout_lines }}"
+
+  post_tasks:
+    - name: Log Jenkins Pipeline Rollback Completion
+      debug:
+        msg: |
+          === Jenkins Pipeline Rollback Completed ===
+          Build Number: {{ jenkins_build_number }}
+          Job Name: {{ jenkins_job_name }}
+          Target Host: {{ inventory_hostname }}
+          Environment: PROD
+          Completion Time: {{ ansible_date_time.iso8601 }}
+          Status: ROLLBACK COMPLETED
+          
+    - name: Generate Rollback Summary Report
+      set_fact:
+        rollback_summary:
+          host: "{{ inventory_hostname }}"
+          environment: "PROD"
+          jenkins_build: "{{ jenkins_build_number }}"
+          action: "ROLLBACK"
+          files_restored: "{{ [restore_globalenv_result, restore_nodemanager_result, restore_setnmjavahome_result, restore_setdomainenv_result] | selectattr('changed', 'equalto', true) | list | length }}"
+          backup_files_available: "{{ latest_backups | length }}"
+          execution_time: "{{ ansible_date_time.iso8601 }}"
+          
+    - name: Display Final Rollback Summary
+      debug:
+        msg: |
+          === FINAL ROLLBACK SUMMARY ===
+          Host: {{ rollback_summary.host }}
+          Environment: {{ rollback_summary.environment }}
+          Jenkins Build: {{ rollback_summary.jenkins_build }}
+          Action: {{ rollback_summary.action }}
+          Files Restored: {{ rollback_summary.files_restored }}
+          Backup Files Available: {{ rollback_summary.backup_files_available }}
+          Execution Time: {{ rollback_summary.execution_time }}
+          
+    - name: Create Jenkins Pipeline Rollback Status File
+      win_file:
+        path: "C:\\temp\\jenkins_pipeline_rollback_status.json"
+        state: file
+        content: "{{ rollback_summary | to_json }}"
+      ignore_errors: yes
