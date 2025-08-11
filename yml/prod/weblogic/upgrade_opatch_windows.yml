@@ -1,0 +1,55 @@
+---
+- name: Upgrade OPatch on WebLogic Windows Server using opatch_generic.jar
+  hosts: dev_weblogic_win
+  gather_facts: no
+  vars:
+    # Path on your Linux Ansible control node
+    local_opatch_jar: "/home/appadmin/OPatch/6880880/opatch_generic.jar"
+
+    # Where to place the JAR on the Windows server
+    opatch_temp_dir: "E:\\OPatch_source"
+    opatch_jar_on_windows: "{{ opatch_temp_dir }}\\opatch_generic.jar"
+
+    # Java location on Windows target
+    java_path: "E:\\jdk1.8.0_441\\bin\\java.exe"
+
+    # WebLogic Oracle Home on Windows
+    oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+    opatch_path: "{{ oracle_home }}\\OPatch"
+
+  tasks:
+
+    - name: Ensure temp directory exists on Windows
+      win_file:
+        path: "{{ opatch_temp_dir }}"
+        state: directory
+
+    - name: Copy opatch_generic.jar from Linux to Windows
+      win_copy:
+        src: "{{ local_opatch_jar }}"
+        dest: "{{ opatch_jar_on_windows }}"
+
+    - name: Run OPatch upgrade using opatch_generic.jar
+      win_shell: |
+        & '{{ java_path }}' -jar '{{ opatch_jar_on_windows }}' -silent oracle_home={{ oracle_home }}
+      args:
+        executable: powershell
+      register: opatch_upgrade_result
+      ignore_errors: yes
+
+    - name: Display OPatch upgrade output
+      debug:
+        msg: "{{ opatch_upgrade_result.stdout_lines }}"
+
+    - name: Verify OPatch version
+      win_shell: |
+        & '{{ opatch_path }}\\opatch.bat' version
+      args:
+        executable: powershell
+      register: opatch_version_result
+      ignore_errors: yes
+
+    - name: Display OPatch version
+      debug:
+        msg: "{{ opatch_version_result.stdout_lines }}"
+

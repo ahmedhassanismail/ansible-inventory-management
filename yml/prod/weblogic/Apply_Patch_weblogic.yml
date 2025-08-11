@@ -1,0 +1,53 @@
+---
+- name: Apply WebLogic Patch using OPatch on Windows
+  hosts: dev_weblogic_win
+  gather_facts: no
+  vars:
+    oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+    patch_number: "35247514"
+    patch_file: "p35247514_122130_Generic.zip"
+    patch_local_path: "/home/appadmin/patches/{{ patch_file }}"
+    patch_remote_path: "E:\\Oracle\\patches\\{{ patch_file }}"
+    patch_extract_path: "E:\\Oracle\\Middleware\\patches\\{{ patch_number }}"
+    opatch_bin_path: "E:\\Oracle\\Middleware\\Oracle_Home\\OPatch"
+
+  tasks:
+
+    - name: Create Patch Directory on Target
+      win_file:
+        path: "E:\\Oracle\\Middleware\\patches"
+        state: directory
+
+    - name: Copy Patch ZIP to Target Windows Server
+      win_copy:
+        src: "{{ patch_local_path }}"
+        dest: "{{ patch_remote_path }}"
+
+    - name: Extract Patch ZIP on Windows Server
+      win_unzip:
+        src: "{{ patch_remote_path }}"
+        dest: "{{ patch_extract_path }}"
+        creates: "{{ patch_extract_path }}\\{{ patch_number }}"
+
+    - name: Display Contents of Patch Directory (for verification)
+      win_shell: "Get-ChildItem -Path '{{ patch_extract_path }}' -Recurse"
+      register: patch_dir_listing
+
+    - name: Show Patch Files on Target
+      debug:
+        msg: "{{ patch_dir_listing.stdout_lines }}"
+
+    - name: Apply WebLogic Patch using OPatch (echo y to confirm)
+      win_shell: |
+        set ORACLE_HOME={{ oracle_home }}
+        set PATH={{ opatch_bin_path }};%PATH%
+        cd {{ patch_extract_path }}
+        echo y | opatch apply
+      args:
+        executable: cmd
+      register: opatch_output
+
+    - name: Show OPatch Output
+      debug:
+        msg: "{{ opatch_output.stdout_lines }}"
+

@@ -1,0 +1,143 @@
+---
+- name: Backup, Replace WebLogic Files, Uninstall & Install Java on Windows Server
+  hosts: dev_weblogic_win
+  gather_facts: no
+  tasks:
+
+    ### Ensure Backup Directory Exists
+    - name: Create Backup Directory
+      win_file:
+        path: "E:\\Oracle\\backup"
+        state: directory
+
+    ### Define WebLogic Files for Backup
+    - name: Set File Backup List
+      set_fact:
+        files_to_backup:
+          - path: "E:\\Oracle\\Middleware\\Oracle_Home\\oui\\.globalEnv.properties"
+          - path: "E:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains\\base_domain\\nodemanager\\nodemanager.properties"
+          - path: "E:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains\\base_domain\\bin\\setNMJavaHome.cmd"
+          - path: "E:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains\\base_domain\\bin\\setDomainEnv.cmd"
+
+    ### Backup WebLogic Configuration Files
+    - name: Backup WebLogic Files with Timestamp
+      win_shell: |
+        $filePath = "{{ item.path }}"
+        $backupDir = "E:\Oracle\Backup"
+        $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
+        $fileName = [System.IO.Path]::GetFileName($filePath)
+        $backupFile = "$backupDir\$fileName`_$timestamp"
+        If (Test-Path $filePath) {
+            Copy-Item -Path $filePath -Destination $backupFile
+            Write-Output "Backup created at $backupFile"
+        } else {
+            Write-Output "No existing file to backup: $filePath"
+        }
+      args:
+        executable: powershell
+      loop: "{{ files_to_backup }}"
+      register: backup_results
+
+    - name: Display Backup Status
+      debug:
+        msg: "{{ backup_results.results | map(attribute='stdout_lines') | list }}"
+
+    ### Copy New WebLogic Configuration Files
+    - name: Copy New WebLogic Files from Ansible Server
+      win_copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        remote_src: no
+      loop:
+        - { src: "/home/appadmin/Upgrade_weblogic_files/.globalEnv.properties", dest: "E:\\Oracle\\Middleware\\Oracle_Home\\oui\\.globalEnv.properties" }
+        - { src: "/home/appadmin/Upgrade_weblogic_files/nodemanager.properties", dest: "E:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains\\base_domain\\nodemanager\\nodemanager.properties" }
+        - { src: "/home/appadmin/Upgrade_weblogic_files/setNMJavaHome.cmd", dest: "E:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains\\base_domain\\bin\\setNMJavaHome.cmd" }
+        - { src: "/home/appadmin/Upgrade_weblogic_files/setDomainEnv.cmd", dest: "E:\\Oracle\\Middleware\\Oracle_Home\\user_projects\\domains\\base_domain\\bin\\setDomainEnv.cmd" }
+      register: copy_results
+
+    - name: Display Copy Results
+      debug:
+        msg: "{{ copy_results }}"
+
+    ### Uninstall Existing Java (Safe, Tolerant)
+    - name: Uninstall existing Java versions
+      win_shell: |
+        $apps = Get-WmiObject -Class Win32_Product | Where-Object {
+          $_.Name -like "Java*" -or $_.Name -like "*JDK*"
+        }
+
+        foreach ($app in $apps) {
+          Write-Output "Uninstalling: $($app.Name)"
+          try {
+            $null = $app.Uninstall()
+          } catch {
+            Write-Output "Failed to uninstall $($app.Name): $($_.Exception.Message)"
+          }
+        }
+
+        if (-not $apps) {
+          Write-Output "No existing Java installations found."
+        }
+      args:
+        executable: powershell
+      register: uninstall_java_result
+      ignore_errors: true
+
+    - name: Display Java Uninstall Results
+      debug:
+        msg: "{{ uninstall_java_result.stdout_lines }}"
+
+    ### Kill All Java Processes Before Installation
+    - name: Kill all running Java processes
+      win_shell: |
+        $javaProcs = Get-Process java -ErrorAction SilentlyContinue
+        if ($javaProcs) {
+          Stop-Process -Name java -Force
+          Write-Output "Java processes killed."
+        } else {
+          Write-Output "No Java processes running."
+        }
+      args:
+        executable: powershell
+      register: kill_java_result
+
+    - name: Display Java Kill Result
+      debug:
+        msg: "{{ kill_java_result.stdout_lines }}"
+
+    ### Copy Java Installer to Windows Server
+    - name: Copy Java Installer to Windows Server
+      win_copy:
+        src: "/home/appadmin/Upgrade_weblogic_files/jdk-8u441-windows-x64.exe"
+        dest: "E:\\Java_source\\jdk-8u441-windows-x64.exe"
+
+    ### Install Java JDK
+    - name: Install Java JDK
+      win_shell: "E:\\Java_source\\jdk-8u441-windows-x64.exe /s INSTALLDIR=E:\\jdk1.8.0_441"
+      args:
+        chdir: "E:\\Java_source"
+
+    ### Set JAVA_HOME Environment Variable
+    - name: Set JAVA_HOME Environment Variable
+      win_environment:
+        name: JAVA_HOME
+        value: "E:\\jdk1.8.0_441"
+        level: machine
+
+    ### Add Java to System PATH
+    - name: Add Java to System PATH
+      win_path:
+        elements:
+          - "E:\\jdk1.8.0_441\\bin"
+
+    ### Get WebLogic Version Using Installed Java
+    - name: Get WebLogic Version
+      win_shell: |
+        $env:JAVA_HOME = "E:\jdk1.8.0_441"
+        $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+        & "$env:JAVA_HOME\bin\java.exe" -cp "E:\Oracle\Middleware\Oracle_Home\wlserver\server\lib\weblogic.jar" weblogic.version
+      register: weblogic_version_output
+
+    - name: Display WebLogic Version
+      debug:
+        msg: "{{ weblogic_version_output.stdout_lines }}"
