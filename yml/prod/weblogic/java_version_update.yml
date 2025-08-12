@@ -1,0 +1,45 @@
+---
+# Java Version Update Configuration
+# This file shows ALL required variables for the WebLogic upgrade playbook
+# Usage: ansible-playbook -i inventory upgrade_Java_weblogic.yml -e @java_version_update.yml
+
+# REQUIRED: Old Java version to search for and replace in WebLogic files
+old_java_version: "jdk-11.0.12"
+
+# REQUIRED: New Java version to replace with in WebLogic files
+new_java_version: "jdk-11.0.60"
+
+# REQUIRED: Java installer filename (must exist in ansible_source_dir)
+java_installer: "jdk-11.0.60-windows-x64.exe"
+
+# REQUIRED: Java installation directory on Windows server
+java_install_dir: "E:\\jdk-11.0.60"
+
+# Alternative examples you can use:
+
+# Example 1: Update from JDK 8 to JDK 11
+# old_java_version: "jdk-8.0.441"
+# new_java_version: "jdk-11.0.60"
+# java_installer: "jdk-11.0.60-windows-x64.exe"
+# java_install_dir: "E:\\jdk-11.0.60"
+
+# Example 2: Update to a newer JDK 11 version
+# old_java_version: "jdk-11.0.12"
+# new_java_version: "jdk-11.0.75"
+# java_installer: "jdk-11.0.75-windows-x64.exe"
+# java_install_dir: "E:\\jdk-11.0.75"
+
+# Example 3: Update from JDK 11 to JDK 17
+# old_java_version: "jdk-11.0.60"
+# new_java_version: "jdk-17.0.9"
+# java_installer: "jdk-17.0.9-windows-x64.exe"
+# java_install_dir: "E:\\jdk-17.0.9"
+
+# IMPORTANT: ALL these variables MUST be provided when running the playbook
+# Either use this file with -e @java_version_update.yml
+# Or provide them directly in the command line:
+# ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+#   -e "old_java_version='jdk-11.0.12'" \
+#   -e "new_java_version='jdk-11.0.60'" \
+#   -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+#   -e "java_install_dir='E:\\jdk-11.0.60'"

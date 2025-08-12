@@ -17,8 +17,10 @@ The playbook will:
 
 **The executor MUST provide these variables when running the playbook:**
 
-- `old_java_version` - The Java version to search for and replace
-- `new_java_version` - The new Java version to replace with
+- `old_java_version` - The Java version to search for and replace in WebLogic files
+- `new_java_version` - The new Java version to replace with in WebLogic files
+- `java_installer` - The Java installer filename (must exist in ansible_source_dir)
+- `java_install_dir` - The Java installation directory on the Windows server
 
 ## Files That Will Be Updated
 
@@ -34,7 +36,9 @@ The playbook will:
 # Replace jdk-11.0.12 with jdk-11.0.60
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
   -e "old_java_version='jdk-11.0.12'" \
-  -e "new_java_version='jdk-11.0.60'"
+  -e "new_java_version='jdk-11.0.60'" \
+  -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+  -e "java_install_dir='E:\\jdk-11.0.60'"
 ```
 
 ### **2. Configuration File**
@@ -49,17 +53,23 @@ ansible-playbook -i inventory upgrade_Java_weblogic.yml \
 # Update from JDK 8 to JDK 11
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
   -e "old_java_version='jdk-8.0.441'" \
-  -e "new_java_version='jdk-11.0.60'"
+  -e "new_java_version='jdk-11.0.60'" \
+  -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+  -e "java_install_dir='E:\\jdk-11.0.60'"
 
 # Update to newer JDK 11 version
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
   -e "old_java_version='jdk-11.0.12'" \
-  -e "new_java_version='jdk-11.0.75'"
+  -e "new_java_version='jdk-11.0.75'" \
+  -e "java_installer='jdk-11.0.75-windows-x64.exe'" \
+  -e "java_install_dir='E:\\jdk-11.0.75'"
 
 # Update from JDK 11 to JDK 17
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
   -e "old_java_version='jdk-11.0.60'" \
-  -e "new_java_version='jdk-17.0.9'"
+  -e "new_java_version='jdk-17.0.9'" \
+  -e "java_installer='jdk-17.0.9-windows-x64.exe'" \
+  -e "java_install_dir='E:\\jdk-17.0.9'"
 ```
 
 ## Configuration File Example
@@ -67,11 +77,17 @@ ansible-playbook -i inventory upgrade_Java_weblogic.yml \
 ```yaml
 # java_version_update.yml
 ---
-# REQUIRED: Old Java version to search for
+# REQUIRED: Old Java version to search for and replace in WebLogic files
 old_java_version: "jdk-11.0.12"
 
-# REQUIRED: New Java version to replace with
+# REQUIRED: New Java version to replace with in WebLogic files
 new_java_version: "jdk-11.0.60"
+
+# REQUIRED: Java installer filename (must exist in ansible_source_dir)
+java_installer: "jdk-11.0.60-windows-x64.exe"
+
+# REQUIRED: Java installation directory on Windows server
+java_install_dir: "E:\\jdk-11.0.60"
 ```
 
 ## How It Works
@@ -100,9 +116,11 @@ If you see this error:
 Required variables must be provided via command line:
 - old_java_version: NOT PROVIDED
 - new_java_version: NOT PROVIDED
+- java_installer: NOT PROVIDED
+- java_install_dir: NOT PROVIDED
 ```
 
-**Solution**: Provide the variables as shown in the usage examples above.
+**Solution**: Provide ALL four variables as shown in the usage examples above.
 
 ### **Check What Will Be Replaced**
 ```bash
@@ -110,6 +128,8 @@ Required variables must be provided via command line:
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
   -e "old_java_version='jdk-11.0.12'" \
   -e "new_java_version='jdk-11.0.60'" \
+  -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+  -e "java_install_dir='E:\\jdk-11.0.60'" \
   -vvv
 ```
 
@@ -119,14 +139,18 @@ ansible-playbook -i inventory upgrade_Java_weblogic.yml \
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
   -e "old_java_version='jdk-11.0.12'" \
   -e "new_java_version='jdk-11.0.60'" \
+  -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+  -e "java_install_dir='E:\\jdk-11.0.60'" \
   --check
 ```
 
 ### **Common Issues**
-1. **Variables Not Provided**: Always include `-e` parameters for Java versions
+1. **Variables Not Provided**: Always include `-e` parameters for ALL four required variables
 2. **Version Not Found**: Check if the old version exists in your files
 3. **Wrong Replacement**: Verify the new version string is correct
 4. **File Not Found**: Ensure WebLogic files exist in expected locations
+5. **Installer Missing**: Ensure the java_installer file exists in ansible_source_dir
+6. **Invalid Path**: Verify the java_install_dir path is valid for Windows
 
 ## Best Practices
 

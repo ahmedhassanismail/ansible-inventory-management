@@ -8,8 +8,6 @@
     oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
     backup_dir: "E:\\Oracle\\backup"
     java_source_dir: "E:\\Java_source"
-    java_installer: "jdk-8u441-windows-x64.exe"
-    java_install_dir: "E:\\jdk1.8.0_441"
     
     # WebLogic domain configuration
     weblogic_domain: "base_domain"
@@ -17,58 +15,80 @@
     # Source files on Ansible server
     ansible_source_dir: "/home/appadmin/Upgrade_weblogic_files"
     
-    # File Replacement Variables - Define what to search for and replace
-    # These can be easily modified to match your specific file content
+    # File Replacement Variables - Simple text replacement
+    # Replace old Java version with new Java version in all WebLogic files
+    # These versions are provided by the executor via command line
     file_replacements:
       # .globalEnv.properties file
       - file: "{{ oracle_home }}\\oui\\.globalEnv.properties"
-        search_pattern: "{{ search_java_home | default('JAVA_HOME=') }}"
-        replace_with: "JAVA_HOME={{ java_install_dir }}\\bin\\java.exe"
-        description: "Java Home in Global Environment"
-        
-      - file: "{{ oracle_home }}\\oui\\.globalEnv.properties"
-        search_pattern: "{{ search_weblogic_home | default('WL_HOME=') }}"
-        replace_with: "WL_HOME={{ oracle_home }}\\wlserver"
-        description: "WebLogic Home in Global Environment"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
         
       # nodemanager.properties file
       - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties"
-        search_pattern: "{{ search_nodemanager_java | default('JavaHome=') }}"
-        replace_with: "JavaHome={{ java_install_dir }}"
-        description: "Java Home in Node Manager"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
         
       # setNMJavaHome.cmd file
       - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd"
-        search_pattern: "{{ search_setnm_java | default('set JAVA_HOME=') }}"
-        replace_with: "set JAVA_HOME={{ java_install_dir }}"
-        description: "Java Home in Set NM Java Home Script"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
         
       # setDomainEnv.cmd file
       - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
-        search_pattern: "{{ search_domain_java | default('set JAVA_HOME=') }}"
-        replace_with: "set JAVA_HOME={{ java_install_dir }}"
-        description: "Java Home in Domain Environment"
-        
-      - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
-        search_pattern: "{{ search_domain_path | default('set PATH=') }}"
-        replace_with: "set PATH=%JAVA_HOME%\\bin;%PATH%"
-        description: "PATH in Domain Environment"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
     
-    # Customizable search patterns (can be overridden via command line)
-    search_java_home: "{{ search_java_home | default('JAVA_HOME=') }}"
-    search_weblogic_home: "{{ search_weblogic_home | default('WL_HOME=') }}"
-    search_nodemanager_java: "{{ search_nodemanager_java | default('JavaHome=') }}"
-    search_setnm_java: "{{ search_setnm_java | default('set JAVA_HOME=') }}"
-    search_domain_java: "{{ search_domain_java | default('set JAVA_HOME=') }}"
-    search_domain_path: "{{ search_domain_path | default('set PATH=') }}"
+    # REQUIRED variables - MUST be provided by executor via command line
+    # Example: ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+    #   -e "old_java_version='jdk-11.0.12'" \
+    #   -e "new_java_version='jdk-11.0.60'" \
+    #   -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+    #   -e "java_install_dir='E:\\jdk-11.0.60'"
+    
+    # Java version variables for file replacement
+    old_java_version: "{{ old_java_version }}"
+    new_java_version: "{{ new_java_version }}"
+    
+    # Java installation variables
+    java_installer: "{{ java_installer }}"
+    java_install_dir: "{{ java_install_dir }}"
     
   pre_tasks:
+    - name: Validate Required Variables
+      fail:
+        msg: |
+          Required variables must be provided via command line:
+          
+          Example:
+          ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+            -e "old_java_version='jdk-11.0.12'" \
+            -e "new_java_version='jdk-11.0.60'" \
+            -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+            -e "java_install_dir='E:\\jdk-11.0.60'"
+          
+          Variables provided:
+          - old_java_version: {{ old_java_version | default('NOT PROVIDED') }}
+          - new_java_version: {{ new_java_version | default('NOT PROVIDED') }}
+          - java_installer: {{ java_installer | default('NOT PROVIDED') }}
+          - java_install_dir: {{ java_install_dir | default('NOT PROVIDED') }}
+      when: 
+        - old_java_version is not defined
+        - new_java_version is not defined
+        - java_installer is not defined
+        - java_install_dir is not defined
+
     - name: Start WebLogic Upgrade Process
       debug:
         msg: |
           === WebLogic Upgrade Started ===
           Target Host: {{ inventory_hostname }}
           Environment: PROD
+          Java Version Update: {{ old_java_version }} → {{ new_java_version }}
           Timestamp: {{ ansible_date_time.iso8601 }}
           
   tasks:
@@ -144,7 +164,7 @@
     - name: Update WebLogic Configuration Files (Direct Modification)
       win_lineinfile:
         path: "{{ item.file }}"
-        regexp: "{{ item.search_pattern }}.*"
+        regexp: "{{ item.search_pattern }}"
         line: "{{ item.replace_with }}"
         backrefs: yes
       loop: "{{ file_replacements }}"
