@@ -15,6 +15,21 @@ java_installer: "jdk-11.0.60-windows-x64.exe"
 # REQUIRED: Java installation directory on Windows server
 java_install_dir: "E:\\jdk-11.0.60"
 
+# REQUIRED: Oracle Home directory path
+oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+
+# REQUIRED: Backup directory path for WebLogic files
+backup_dir: "E:\\Oracle\\backup"
+
+# REQUIRED: Java source directory on Windows server
+java_source_dir: "E:\\Java_source"
+
+# OPTIONAL: WebLogic domain name (defaults to 'base_domain' if not provided)
+weblogic_domain: "base_domain"
+
+# OPTIONAL: Source directory on Ansible server (defaults to '/home/appadmin/Upgrade_weblogic_files')
+ansible_source_dir: "/home/appadmin/Upgrade_weblogic_files"
+
 # Alternative examples you can use:
 
 # Example 1: Update from JDK 8 to JDK 11
@@ -22,24 +37,36 @@ java_install_dir: "E:\\jdk-11.0.60"
 # new_java_version: "jdk-11.0.60"
 # java_installer: "jdk-11.0.60-windows-x64.exe"
 # java_install_dir: "E:\\jdk-11.0.60"
+# oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+# backup_dir: "E:\\Oracle\\backup"
+# java_source_dir: "E:\\Java_source"
 
-# Example 2: Update to a newer JDK 11 version
+# Example 2: Update to newer JDK 11 version
 # old_java_version: "jdk-11.0.12"
 # new_java_version: "jdk-11.0.75"
 # java_installer: "jdk-11.0.75-windows-x64.exe"
 # java_install_dir: "E:\\jdk-11.0.75"
+# oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+# backup_dir: "E:\\Oracle\\backup"
+# java_source_dir: "E:\\Java_source"
 
 # Example 3: Update from JDK 11 to JDK 17
 # old_java_version: "jdk-11.0.60"
 # new_java_version: "jdk-17.0.9"
 # java_installer: "jdk-17.0.9-windows-x64.exe"
 # java_install_dir: "E:\\jdk-17.0.9"
+# oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+# backup_dir: "E:\\Oracle\\backup"
+# java_source_dir: "E:\\Java_source"
 
-# IMPORTANT: ALL these variables MUST be provided when running the playbook
+# IMPORTANT: ALL required variables MUST be provided when running the playbook
 # Either use this file with -e @java_version_update.yml
 # Or provide them directly in the command line:
 # ansible-playbook -i inventory upgrade_Java_weblogic.yml \
 #   -e "old_java_version='jdk-11.0.12'" \
 #   -e "new_java_version='jdk-11.0.60'" \
 #   -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
-#   -e "java_install_dir='E:\\jdk-11.0.60'"
+#   -e "java_install_dir='E:\\jdk-11.0.60'" \
+#   -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'" \
+#   -e "backup_dir='E:\\Oracle\\backup'" \
+#   -e "java_source_dir='E:\\Java_source'"

@@ -4,16 +4,26 @@
   gather_facts: no
   
   vars:
-    # Configurable paths - can be overridden per environment
-    oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
-    backup_dir: "E:\\Oracle\\backup"
-    java_source_dir: "E:\\Java_source"
+    # REQUIRED: Oracle and WebLogic paths - MUST be provided by executor via command line
+    # Example: ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+    #   -e "old_java_version='jdk-11.0.12'" \
+    #   -e "new_java_version='jdk-11.0.60'" \
+    #   -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+    #   -e "java_install_dir='E:\\jdk-11.0.60'" \
+    #   -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'" \
+    #   -e "backup_dir='E:\\Oracle\\backup'" \
+    #   -e "java_source_dir='E:\\Java_source'"
+    
+    # Oracle and WebLogic paths
+    oracle_home: "{{ oracle_home }}"
+    backup_dir: "{{ backup_dir }}"
+    java_source_dir: "{{ java_source_dir }}"
     
     # WebLogic domain configuration
-    weblogic_domain: "base_domain"
+    weblogic_domain: "{{ weblogic_domain | default('base_domain') }}"
     
     # Source files on Ansible server
-    ansible_source_dir: "/home/appadmin/Upgrade_weblogic_files"
+    ansible_source_dir: "{{ ansible_source_dir | default('/home/appadmin/Upgrade_weblogic_files') }}"
     
     # File Replacement Variables - Simple text replacement
     # Replace old Java version with new Java version in all WebLogic files
@@ -69,18 +79,27 @@
             -e "old_java_version='jdk-11.0.12'" \
             -e "new_java_version='jdk-11.0.60'" \
             -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
-            -e "java_install_dir='E:\\jdk-11.0.60'"
+            -e "java_install_dir='E:\\jdk-11.0.60'" \
+            -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'" \
+            -e "backup_dir='E:\\Oracle\\backup'" \
+            -e "java_source_dir='E:\\Java_source'"
           
           Variables provided:
           - old_java_version: {{ old_java_version | default('NOT PROVIDED') }}
           - new_java_version: {{ new_java_version | default('NOT PROVIDED') }}
           - java_installer: {{ java_installer | default('NOT PROVIDED') }}
           - java_install_dir: {{ java_install_dir | default('NOT PROVIDED') }}
+          - oracle_home: {{ oracle_home | default('NOT PROVIDED') }}
+          - backup_dir: {{ backup_dir | default('NOT PROVIDED') }}
+          - java_source_dir: {{ java_source_dir | default('NOT PROVIDED') }}
       when: 
         - old_java_version is not defined
         - new_java_version is not defined
         - java_installer is not defined
         - java_install_dir is not defined
+        - oracle_home is not defined
+        - backup_dir is not defined
+        - java_source_dir is not defined
 
     - name: Start WebLogic Upgrade Process
       debug:
