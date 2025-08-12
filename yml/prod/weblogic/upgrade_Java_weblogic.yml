@@ -3,10 +3,6 @@
   hosts: prod_weblogic_win
   gather_facts: no
   
-  # Jenkins Pipeline Compatibility
-  serial: 1  # Execute one host at a time for better control
-  max_fail_percentage: 0  # Fail fast if any host fails
-  
   vars:
     # Configurable paths - can be overridden per environment
     oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
@@ -15,65 +11,62 @@
     java_installer: "jdk-8u441-windows-x64.exe"
     java_install_dir: "E:\\jdk1.8.0_441"
     
-    
     # WebLogic domain configuration
     weblogic_domain: "base_domain"
     
     # Source files on Ansible server
     ansible_source_dir: "/home/appadmin/Upgrade_weblogic_files"
     
-    # Jenkins Pipeline Variables
-    jenkins_build_number: "{{ jenkins_build_number | default('manual') }}"
-    jenkins_job_name: "{{ jenkins_job_name | default('ansible-weblogic-upgrade') }}"
-    
-    # WebLogic Configuration Update Variables
-    # These can be overridden via command line or Jenkins parameters
-    weblogic_config_updates:
+    # File Replacement Variables - Define what to search for and replace
+    # These can be easily modified to match your specific file content
+    file_replacements:
+      # .globalEnv.properties file
       - file: "{{ oracle_home }}\\oui\\.globalEnv.properties"
-        regexp: "{{ java_home_regexp | default('^#.*Java.*Home.*') }}"
-        line: "JAVA_HOME={{ java_install_dir }}\\bin\\java.exe"
-        description: "Java Home Configuration"
+        search_pattern: "{{ search_java_home | default('JAVA_HOME=') }}"
+        replace_with: "JAVA_HOME={{ java_install_dir }}\\bin\\java.exe"
+        description: "Java Home in Global Environment"
         
       - file: "{{ oracle_home }}\\oui\\.globalEnv.properties"
-        regexp: "{{ weblogic_home_regexp | default('^#.*WebLogic.*Home.*') }}"
-        line: "WL_HOME={{ oracle_home }}\\wlserver"
-        description: "WebLogic Home Configuration"
+        search_pattern: "{{ search_weblogic_home | default('WL_HOME=') }}"
+        replace_with: "WL_HOME={{ oracle_home }}\\wlserver"
+        description: "WebLogic Home in Global Environment"
         
+      # nodemanager.properties file
       - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties"
-        regexp: "{{ nodemanager_java_home_regexp | default('^JavaHome=.*') }}"
-        line: "JavaHome={{ java_install_dir }}"
-        description: "Node Manager Java Home"
+        search_pattern: "{{ search_nodemanager_java | default('JavaHome=') }}"
+        replace_with: "JavaHome={{ java_install_dir }}"
+        description: "Java Home in Node Manager"
         
+      # setNMJavaHome.cmd file
       - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd"
-        regexp: "{{ setnmjavahome_regexp | default('^set.*JAVA_HOME.*') }}"
-        line: "set JAVA_HOME={{ java_install_dir }}"
-        description: "Set NM Java Home Script"
+        search_pattern: "{{ search_setnm_java | default('set JAVA_HOME=') }}"
+        replace_with: "set JAVA_HOME={{ java_install_dir }}"
+        description: "Java Home in Set NM Java Home Script"
+        
+      # setDomainEnv.cmd file
+      - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
+        search_pattern: "{{ search_domain_java | default('set JAVA_HOME=') }}"
+        replace_with: "set JAVA_HOME={{ java_install_dir }}"
+        description: "Java Home in Domain Environment"
         
       - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
-        regexp: "{{ setdomainenv_java_home_regexp | default('^set.*JAVA_HOME.*') }}"
-        line: "set JAVA_HOME={{ java_install_dir }}"
-        description: "Domain Environment Java Home"
-        
-      - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
-        regexp: "{{ setdomainenv_path_regexp | default('^set.*PATH.*') }}"
-        line: "set PATH=%JAVA_HOME%\\bin;%PATH%"
-        description: "Domain Environment PATH"
+        search_pattern: "{{ search_domain_path | default('set PATH=') }}"
+        replace_with: "set PATH=%JAVA_HOME%\\bin;%PATH%"
+        description: "PATH in Domain Environment"
     
-    # Customizable regexp patterns (can be overridden)
-    java_home_regexp: "{{ java_home_regexp | default('^#.*Java.*Home.*') }}"
-    weblogic_home_regexp: "{{ weblogic_home_regexp | default('^#.*WebLogic.*Home.*') }}"
-    nodemanager_java_home_regexp: "{{ nodemanager_java_home_regexp | default('^JavaHome=.*') }}"
-    setnmjavahome_regexp: "{{ setnmjavahome_regexp | default('^set.*JAVA_HOME.*') }}"
-    setdomainenv_java_home_regexp: "{{ setdomainenv_java_home_regexp | default('^set.*JAVA_HOME.*') }}"
-    setdomainenv_path_regexp: "{{ setdomainenv_path_regexp | default('^set.*PATH.*') }}"
+    # Customizable search patterns (can be overridden via command line)
+    search_java_home: "{{ search_java_home | default('JAVA_HOME=') }}"
+    search_weblogic_home: "{{ search_weblogic_home | default('WL_HOME=') }}"
+    search_nodemanager_java: "{{ search_nodemanager_java | default('JavaHome=') }}"
+    search_setnm_java: "{{ search_setnm_java | default('set JAVA_HOME=') }}"
+    search_domain_java: "{{ search_domain_java | default('set JAVA_HOME=') }}"
+    search_domain_path: "{{ search_domain_path | default('set PATH=') }}"
     
   pre_tasks:
-    - name: Log Jenkins Pipeline Start
+    - name: Start WebLogic Upgrade Process
       debug:
         msg: |
-          === Jenkins Pipeline Execution Started ===
-          Build Number: {{ jenkins_build_number }}
-          Job Name: {{ jenkins_job_name }}
+          === WebLogic Upgrade Started ===
           Target Host: {{ inventory_hostname }}
           Environment: PROD
           Timestamp: {{ ansible_date_time.iso8601 }}
@@ -122,8 +115,8 @@
       debug:
         msg: "{{ backup_results.results | map(attribute='stdout_lines') | list }}"
 
-    ### Copy New WebLogic Configuration Files
-    - name: Check if WebLogic files exist before replacement
+    ### Check if WebLogic files exist
+    - name: Check if WebLogic files exist
       win_stat:
         path: "{{ item.dest }}"
       loop:
@@ -143,66 +136,23 @@
         msg: |
           === WebLogic Configuration Updates ===
           File: {{ item.file }}
-          Pattern: {{ item.regexp }}
-          New Value: {{ item.line }}
+          Search Pattern: {{ item.search_pattern }}
+          Replace With: {{ item.replace_with }}
           Description: {{ item.description }}
-      loop: "{{ weblogic_config_updates }}"
+      loop: "{{ file_replacements }}"
 
     - name: Update WebLogic Configuration Files (Direct Modification)
       win_lineinfile:
         path: "{{ item.file }}"
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
+        regexp: "{{ item.search_pattern }}.*"
+        line: "{{ item.replace_with }}"
         backrefs: yes
-      loop: "{{ weblogic_config_updates }}"
+      loop: "{{ file_replacements }}"
       when: 
         - item.file is defined
-        - item.regexp is defined
-        - item.line is defined
+        - item.search_pattern is defined
+        - item.replace_with is defined
       register: file_update_results
-
-    - name: Create WebLogic Configuration Files if they don't exist
-      win_template:
-        src: "{{ item.template_src }}"
-        dest: "{{ item.dest }}"
-      loop:
-        - { dest: "{{ oracle_home }}\\oui\\.globalEnv.properties", template_src: "templates/weblogic/globalEnv.properties.j2" }
-        - { dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties", template_src: "templates/weblogic/nodemanager.properties.j2" }
-        - { dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd", template_src: "templates/weblogic/setNMJavaHome.cmd.j2" }
-        - { dest: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd", template_src: "templates/weblogic/setDomainEnv.cmd.j2" }
-      when: not item.stat.exists
-      register: file_create_results
-
-    - name: Verify file content after update
-      win_shell: |
-        $filePath = "{{ item.item.dest }}"
-        if (Test-Path $filePath) {
-          $content = Get-Content $filePath -Raw
-          $lineCount = ($content -split "`n").Count
-          $size = (Get-Item $filePath).Length
-          Write-Output "File: $filePath - Lines: $lineCount - Size: $size bytes"
-          
-          # Check for key configuration values
-          if ($content -match "JAVA_HOME") {
-            Write-Output "✓ JAVA_HOME configuration found"
-          }
-          if ($content -match "{{ java_install_dir }}") {
-            Write-Output "✓ Java path configuration updated"
-          }
-        } else {
-          Write-Output "File: $filePath - NOT FOUND"
-        }
-      loop: "{{ file_check_results.results }}"
-      register: file_verification_results
-
-    - name: Display File Update Summary
-      debug:
-        msg: |
-          === WebLogic Files Update Summary ===
-          Files Checked: {{ file_check_results.results | length }}
-          Files Updated: {{ file_update_results.results | default([]) | length }}
-          Files Created: {{ file_create_results.results | default([]) | length }}
-          Verification: {{ file_verification_results.results | map(attribute='stdout_lines') | list }}
 
     ### Uninstall Existing Java (Safe, Tolerant)
     - name: Uninstall existing Java versions
@@ -300,12 +250,10 @@
         msg: "{{ java_version_output.stdout_lines }}"
 
   post_tasks:
-    - name: Log Jenkins Pipeline Completion
+    - name: Log WebLogic Upgrade Completion
       debug:
         msg: |
-          === Jenkins Pipeline Execution Completed ===
-          Build Number: {{ jenkins_build_number }}
-          Job Name: {{ jenkins_job_name }}
+          === WebLogic Upgrade Completed ===
           Target Host: {{ inventory_hostname }}
           Environment: PROD
           Completion Time: {{ ansible_date_time.iso8601 }}
@@ -316,10 +264,8 @@
         execution_summary:
           host: "{{ inventory_hostname }}"
           environment: "PROD"
-          jenkins_build: "{{ jenkins_build_number }}"
           backup_files: "{{ backup_results.results | length }}"
           files_updated: "{{ file_update_results.results | default([]) | length }}"
-          files_created: "{{ file_create_results.results | default([]) | length }}"
           java_uninstalled: "{{ uninstall_java_result.stdout_lines | length }}"
           java_installed: "{{ java_install_dir }}"
           weblogic_version: "{{ weblogic_version_output.stdout_lines | first | default('N/A') }}"
@@ -332,19 +278,10 @@
           === FINAL EXECUTION SUMMARY ===
           Host: {{ execution_summary.host }}
           Environment: {{ execution_summary.environment }}
-          Jenkins Build: {{ execution_summary.jenkins_build }}
           Backup Files: {{ execution_summary.backup_files }}
           Files Updated: {{ execution_summary.files_updated }}
-          Files Created: {{ execution_summary.files_created }}
           Java Uninstalled: {{ execution_summary.java_uninstalled }}
           Java Installation Path: {{ execution_summary.java_installed }}
           WebLogic Version: {{ execution_summary.weblogic_version }}
           Java Version: {{ execution_summary.java_version }}
           Execution Time: {{ execution_summary.execution_time }}
-          
-    - name: Create Jenkins Pipeline Status File
-      win_file:
-        path: "C:\\temp\\jenkins_pipeline_status.json"
-        state: file
-        content: "{{ execution_summary | to_json }}"
-      ignore_errors: yes
