@@ -5,6 +5,7 @@
 This document describes the Jenkins CI/CD pipelines available for WebLogic operations:
 1. **Java Upgrade Pipeline** - Updates Java versions in WebLogic configuration files
 2. **Patch Application Pipeline** - Applies WebLogic patches using OPatch
+3. **OPatch Upgrade Pipeline** - Upgrades OPatch tool using opatch_generic.jar
 
 ## 🚀 **Available Pipelines**
 
@@ -18,25 +19,33 @@ This document describes the Jenkins CI/CD pipelines available for WebLogic opera
 - **Purpose**: Apply WebLogic patches using OPatch
 - **Target**: Windows WebLogic servers
 
+### **3. OPatch Upgrade Pipeline**
+- **File**: `Jenkinsfile_OPatch_Upgrade`
+- **Purpose**: Upgrade OPatch tool using opatch_generic.jar
+- **Target**: Windows WebLogic servers
+
 ## 📋 **Pipeline Parameters Comparison**
 
-| Parameter | Java Upgrade | Patch Application | Description |
-|-----------|--------------|-------------------|-------------|
-| `OLD_JAVA_VERSION` | ✅ Required | ❌ N/A | Current Java version to replace |
-| `NEW_JAVA_VERSION` | ✅ Required | ❌ N/A | New Java version to install |
-| `JAVA_INSTALLER` | ✅ Required | ❌ N/A | Java installer filename |
-| `JAVA_INSTALL_DIR` | ✅ Required | ❌ N/A | Java installation directory |
-| `PATCH_NUMBER` | ❌ N/A | ✅ Required | Patch identification number |
-| `PATCH_FILE` | ❌ N/A | ✅ Required | Patch ZIP file name |
-| `ORACLE_HOME` | ✅ Required | ✅ Required | Oracle Home directory path |
-| `BACKUP_DIR` | ✅ Required | ❌ N/A | Backup directory for WebLogic files |
-| `JAVA_SOURCE_DIR` | ✅ Required | ❌ N/A | Java source directory on Windows |
-| `PATCH_LOCAL_PATH` | ❌ N/A | ✅ Required | Source patch file path on Ansible |
-| `PATCH_REMOTE_PATH` | ❌ N/A | ✅ Required | Destination patch file path on Windows |
-| `PATCH_EXTRACT_PATH` | ❌ N/A | ✅ Required | Patch extraction directory |
-| `TARGET_HOSTS` | ✅ Required | ✅ Required | Target host group from inventory |
-| `DRY_RUN` | ✅ Optional | ✅ Optional | Run in check mode (dry run) |
-| `VERBOSE` | ✅ Optional | ✅ Optional | Enable verbose output |
+| Parameter | Java Upgrade | Patch Application | OPatch Upgrade | Description |
+|-----------|--------------|-------------------|----------------|-------------|
+| `OLD_JAVA_VERSION` | ✅ Required | ❌ N/A | ❌ N/A | Current Java version to replace |
+| `NEW_JAVA_VERSION` | ✅ Required | ❌ N/A | ❌ N/A | New Java version to install |
+| `JAVA_INSTALLER` | ✅ Required | ❌ N/A | ❌ N/A | Java installer filename |
+| `JAVA_INSTALL_DIR` | ✅ Required | ❌ N/A | ❌ N/A | Java installation directory |
+| `PATCH_NUMBER` | ❌ N/A | ✅ Required | ❌ N/A | Patch identification number |
+| `PATCH_FILE` | ❌ N/A | ✅ Required | ❌ N/A | Patch ZIP file name |
+| `LOCAL_OPATCH_JAR` | ❌ N/A | ❌ N/A | ✅ Required | Path to OPatch JAR on Ansible |
+| `OPATCH_TEMP_DIR` | ❌ N/A | ❌ N/A | ✅ Required | Temp directory on Windows |
+| `JAVA_PATH` | ❌ N/A | ❌ N/A | ✅ Required | Java executable path on Windows |
+| `ORACLE_HOME` | ✅ Required | ✅ Required | ✅ Required | Oracle Home directory path |
+| `BACKUP_DIR` | ✅ Required | ❌ N/A | ❌ N/A | Backup directory for WebLogic files |
+| `JAVA_SOURCE_DIR` | ✅ Required | ❌ N/A | ❌ N/A | Java source directory on Windows |
+| `PATCH_LOCAL_PATH` | ❌ N/A | ✅ Required | ❌ N/A | Source patch file path on Ansible |
+| `PATCH_REMOTE_PATH` | ❌ N/A | ✅ Required | ❌ N/A | Destination patch file path on Windows |
+| `PATCH_EXTRACT_PATH` | ❌ N/A | ✅ Required | ❌ N/A | Patch extraction directory |
+| `TARGET_HOSTS` | ✅ Required | ✅ Required | ✅ Required | Target host group from inventory |
+| `DRY_RUN` | ✅ Optional | ✅ Optional | ✅ Optional | Run in check mode (dry run) |
+| `VERBOSE` | ✅ Optional | ✅ Optional | ✅ Optional | Enable verbose output |
 
 ## 🔧 **Pipeline Features**
 
@@ -59,6 +68,12 @@ This document describes the Jenkins CI/CD pipelines available for WebLogic opera
 - 📦 **File Transfer**: Copies patch files from Ansible to Windows
 - 📂 **Directory Management**: Creates necessary patch directories
 - 🔍 **Patch Verification**: Shows extracted patch contents
+
+### **OPatch Upgrade Specific**
+- 🔧 **OPatch Tool Upgrade**: Upgrades the OPatch utility itself
+- 📦 **JAR File Management**: Copies and executes opatch_generic.jar
+- ☕ **Java Integration**: Uses Java to run OPatch upgrade
+- 📊 **Version Verification**: Confirms new OPatch version
 
 ## 📖 **Usage Examples**
 
@@ -144,6 +159,42 @@ pipeline {
 }
 ```
 
+### **OPatch Upgrade Pipeline**
+
+#### **Basic Usage**
+```groovy
+pipeline {
+    agent any
+    
+    parameters {
+        string(name: 'LOCAL_OPATCH_JAR', defaultValue: '/home/appadmin/OPatch/6880880/opatch_generic.jar')
+        string(name: 'OPATCH_TEMP_DIR', defaultValue: 'E:\\OPatch_source')
+        string(name: 'JAVA_PATH', defaultValue: 'E:\\jdk1.8.0_441\\bin\\java.exe')
+        string(name: 'ORACLE_HOME', defaultValue: 'E:\\Oracle\\Middleware\\Oracle_Home')
+        choice(name: 'TARGET_HOSTS', choices: ['prod_weblogic_win', 'prod_weblogic_medgo'])
+        booleanParam(name: 'DRY_RUN', defaultValue: false)
+        booleanParam(name: 'VERBOSE', defaultValue: true)
+    }
+    
+    stages {
+        stage('Execute OPatch Upgrade') {
+            steps {
+                sh """
+                    ansible-playbook -i inventory upgrade_opatch_windows.yml \\
+                      -e "local_opatch_jar='${params.LOCAL_OPATCH_JAR}'" \\
+                      -e "opatch_temp_dir='${params.OPATCH_TEMP_DIR}'" \\
+                      -e "java_path='${params.JAVA_PATH}'" \\
+                      -e "oracle_home='${params.ORACLE_HOME}'" \\
+                      --limit ${params.TARGET_HOSTS} \\
+                      ${params.DRY_RUN ? '--check' : ''} \\
+                      ${params.VERBOSE ? '-vv' : ''}
+                """
+            }
+        }
+    }
+}
+```
+
 ## 🎯 **Common Usage Scenarios**
 
 ### **Scenario 1: Java Version Update**
@@ -162,6 +213,16 @@ PATCH_NUMBER: 35247514
 PATCH_FILE: p35247514_122130_Generic.zip
 ORACLE_HOME: E:\Oracle\Middleware\Oracle_Home
 TARGET_HOSTS: prod_weblogic_medgo
+DRY_RUN: true (first run to test)
+```
+
+### **Scenario 3: OPatch Tool Upgrade**
+```
+LOCAL_OPATCH_JAR: /home/appadmin/OPatch/6880880/opatch_generic.jar
+OPATCH_TEMP_DIR: E:\OPatch_source
+JAVA_PATH: E:\jdk1.8.0_441\bin\java.exe
+ORACLE_HOME: E:\Oracle\Middleware\Oracle_Home
+TARGET_HOSTS: prod_weblogic_win
 DRY_RUN: true (first run to test)
 ```
 
@@ -227,6 +288,7 @@ ansible -i inventory prod_weblogic_win -m setup
 # Validate playbook syntax
 ansible-playbook -i inventory upgrade_Java_weblogic.yml --syntax-check
 ansible-playbook -i inventory Apply_Patch_weblogic.yml --syntax-check
+ansible-playbook -i inventory upgrade_opatch_windows.yml --syntax-check
 ```
 
 ## 📚 **File Structure**
@@ -235,12 +297,16 @@ ansible-playbook -i inventory Apply_Patch_weblogic.yml --syntax-check
 yml/prod/weblogic/
 ├── upgrade_Java_weblogic.yml      # Java upgrade playbook
 ├── Apply_Patch_weblogic.yml       # Patch application playbook
+├── upgrade_opatch_windows.yml     # OPatch upgrade playbook
 ├── Jenkinsfile                     # Java upgrade pipeline
 ├── Jenkinsfile_Patch              # Patch application pipeline
+├── Jenkinsfile_OPatch_Upgrade     # OPatch upgrade pipeline
 ├── java_version_update.yml         # Java upgrade configuration
 ├── patch_config.yml               # Patch application configuration
+├── opatch_upgrade_config.yml      # OPatch upgrade configuration
 ├── README.md                      # Java upgrade documentation
 ├── PATCH_README.md                # Patch application documentation
+├── OPATCH_UPGRADE_README.md       # OPatch upgrade documentation
 └── JENKINS_PIPELINES_README.md    # This file
 ```
 
@@ -260,6 +326,14 @@ yml/prod/weblogic/
 3. 📦 **Patch file transfer** confirmation
 4. 📂 **Patch extraction** success
 5. 🔧 **OPatch application** without errors
+6. 📋 **Detailed execution summary** provided
+
+### **OPatch Upgrade Pipeline**
+1. ✅ **All stages completed** without errors
+2. 📊 **Post-execution summary** with execution details
+3. 📦 **OPatch JAR copy** confirmation
+4. 🔧 **OPatch upgrade** success
+5. 📊 **Version verification** successful
 6. 📋 **Detailed execution summary** provided
 
 ## 📞 **Support**
