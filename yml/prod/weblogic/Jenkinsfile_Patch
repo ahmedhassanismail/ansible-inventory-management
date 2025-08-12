@@ -11,6 +11,7 @@ pipeline {
         choice(name: 'TARGET_HOSTS', choices: ['prod_weblogic_win', 'prod_weblogic_medgo', 'prod_weblogic_batch', 'prod_weblogic_external_reports'], description: 'Target host group from inventory')
         booleanParam(name: 'DRY_RUN', defaultValue: false, description: 'Run in check mode (dry run) - preview changes without making them')
         booleanParam(name: 'VERBOSE', defaultValue: true, description: 'Enable verbose output for detailed logging')
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true, description: 'Execute host by host with user confirmation for each host')
     }
     
     stages {
@@ -52,15 +53,144 @@ pipeline {
                     📂 Extract Path: ${params.PATCH_EXTRACT_PATH}
                     🔍 Dry Run Mode (TEST MODE): ${params.DRY_RUN ? 'ENABLED' : 'DISABLED'}
                     📊 Verbose Output: ${params.VERBOSE ? 'ENABLED' : 'DISABLED'}
+                    🚦 Host-by-Host Execution: ${params.HOST_BY_HOST ? 'ENABLED' : 'DISABLED'}
                     =================================
                     """
                 }
             }
         }
         
-        stage('Execute WebLogic Patch') {
+        stage('Get Host List') {
             steps {
                 script {
+                    // Get the list of hosts in the target group
+                    def hostList = sh(
+                        script: "ansible -i inventory ${params.TARGET_HOSTS} --list-hosts",
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Parse the host list (remove group name and clean up)
+                    def hosts = hostList.split('\n').findAll { it.trim() && !it.contains('hosts') }.collect { it.trim() }
+                    
+                    echo "📋 Hosts in group '${params.TARGET_HOSTS}':"
+                    hosts.eachWithIndex { host, index ->
+                        echo "   ${index + 1}. ${host}"
+                    }
+                    
+                    // Store hosts in environment variable for other stages
+                    env.HOST_LIST = hosts.join(',')
+                    env.TOTAL_HOSTS = hosts.size().toString()
+                    env.CURRENT_HOST_INDEX = '0'
+                    
+                    echo "🚀 Total hosts to process: ${env.TOTAL_HOSTS}"
+                }
+            }
+        }
+        
+        stage('Execute WebLogic Patch - Host by Host') {
+            when {
+                expression { params.HOST_BY_HOST == true }
+            }
+            steps {
+                script {
+                    def hosts = env.HOST_LIST.split(',')
+                    def totalHosts = hosts.size()
+                    
+                    echo "🔄 Starting host-by-host execution for ${totalHosts} hosts..."
+                    
+                    hosts.eachWithIndex { host, index ->
+                        def currentHostIndex = index + 1
+                        env.CURRENT_HOST_INDEX = currentHostIndex.toString()
+                        
+                        echo """
+                        ===== PROCESSING HOST ${currentHostIndex}/${totalHosts} =====
+                        🖥️  Target Host: ${host}
+                        📍 Progress: ${currentHostIndex}/${totalHosts}
+                        🔧 Patch Number: ${params.PATCH_NUMBER}
+                        📦 Patch File: ${params.PATCH_FILE}
+                        ⏰ Start Time: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
+                        =========================================
+                        """
+                        
+                        // User confirmation for each host (except first one)
+                        if (currentHostIndex > 1) {
+                            input message: "Ready to proceed with host ${currentHostIndex}/${totalHosts}: ${host}?", 
+                                  ok: "Proceed with ${host}"
+                        }
+                        
+                        // Execute patch application for current host
+                        def checkMode = params.DRY_RUN ? '--check' : ''
+                        def verboseFlag = params.VERBOSE ? '-vv' : ''
+                        
+                        def ansibleCmd = """
+                            ansible-playbook -i inventory Apply_Patch_weblogic.yml \\
+                              -e "patch_number='${params.PATCH_NUMBER}'" \\
+                              -e "patch_file='${params.PATCH_FILE}'" \\
+                              -e "oracle_home='${params.ORACLE_HOME}'" \\
+                              -e "patch_local_path='${params.PATCH_LOCAL_PATH}'" \\
+                              -e "patch_remote_path='${params.PATCH_REMOTE_PATH}'" \\
+                              -e "patch_extract_path='${params.PATCH_EXTRACT_PATH}'" \\
+                              --limit ${host} \\
+                              ${checkMode} \\
+                              ${verboseFlag}
+                        """.stripIndent()
+                        
+                        echo "🚀 Executing patch application for ${host}:"
+                        echo ansibleCmd
+                        
+                        try {
+                            sh ansibleCmd
+                            echo "✅ Patch application completed successfully for ${host}"
+                        } catch (Exception e) {
+                            echo "❌ Patch application failed for ${host}"
+                            echo "Error: ${e.getMessage()}"
+                            
+                            // Ask user if they want to continue with next host
+                            if (currentHostIndex < totalHosts) {
+                                def continueExecution = input message: "Patch application failed for ${host}. Do you want to continue with the next host?", 
+                                                           ok: "Continue with next host", 
+                                                           submitter: "Continue", 
+                                                           submitterParameter: "continue"
+                                
+                                if (continueExecution != "continue") {
+                                    error "Execution stopped by user after failure on ${host}"
+                                }
+                            } else {
+                                error "Patch application failed for the last host: ${host}"
+                            }
+                        }
+                        
+                        // Show progress
+                        echo """
+                        ===== HOST ${currentHostIndex}/${totalHostS} COMPLETED =====
+                        🖥️  Host: ${host}
+                        📍 Progress: ${currentHostIndex}/${totalHosts}
+                        🔧 Patch Number: ${params.PATCH_NUMBER}
+                        📦 Patch File: ${params.PATCH_FILE}
+                        ⏰ Completion Time: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
+                        =========================================
+                        """
+                        
+                        // Pause between hosts (except for the last one)
+                        if (currentHostIndex < totalHosts) {
+                            echo "⏸️  Pausing before next host..."
+                            sleep 5
+                        }
+                    }
+                    
+                    echo "🎉 All hosts processed successfully!"
+                }
+            }
+        }
+        
+        stage('Execute WebLogic Patch - All Hosts') {
+            when {
+                expression { params.HOST_BY_HOST == false }
+            }
+            steps {
+                script {
+                    echo "🚀 Executing patch application for all hosts in parallel..."
+                    
                     def checkMode = params.DRY_RUN ? '--check' : ''
                     def verboseFlag = params.VERBOSE ? '-vv' : ''
                     
@@ -94,6 +224,7 @@ pipeline {
             steps {
                 script {
                     def executionStatus = params.DRY_RUN ? "DRY RUN COMPLETED" : "WEBLOGIC PATCH APPLIED"
+                    def executionMode = params.HOST_BY_HOST ? "Host-by-Host" : "All Hosts Parallel"
                     
                     echo """
                     ===== ${executionStatus} =====
@@ -104,6 +235,8 @@ pipeline {
                     📁 Source Path: ${params.PATCH_LOCAL_PATH}
                     💾 Remote Path: ${params.PATCH_REMOTE_PATH}
                     📂 Extract Path: ${params.PATCH_EXTRACT_PATH}
+                    🚦 Execution Mode: ${executionMode}
+                    📊 Total Hosts Processed: ${env.TOTAL_HOSTS ?: 'N/A'}
                     ⏰ Execution Time: ${new Date().format("yyyy-MM-dd HH:mm:ss")}
                     =========================================
                     """
@@ -115,6 +248,10 @@ pipeline {
     post {
         always {
             echo "🏁 WebLogic patch pipeline completed"
+            echo "📊 Final Status:"
+            echo "   - Total Hosts: ${env.TOTAL_HOSTS ?: 'N/A'}"
+            echo "   - Execution Mode: ${params.HOST_BY_HOST ? 'Host-by-Host' : 'All Hosts Parallel'}"
+            echo "   - Dry Run: ${params.DRY_RUN ? 'Yes' : 'No'}"
         }
         success {
             if (params.DRY_RUN) {
@@ -126,6 +263,10 @@ pipeline {
                 echo "🔧 Patch ${params.PATCH_NUMBER} has been applied to ${params.TARGET_HOSTS}"
                 echo "📦 Patch file ${params.PATCH_FILE} was processed"
                 echo "🌐 WebLogic has been updated with the new patch"
+                
+                if (params.HOST_BY_HOST) {
+                    echo "🚦 Host-by-host execution completed with user control"
+                }
             }
         }
         failure {
@@ -135,6 +276,11 @@ pipeline {
             echo "🖥️  Ensure target hosts are accessible"
             echo "📦 Check if patch file exists at ${params.PATCH_LOCAL_PATH}"
             echo "🏠 Verify Oracle Home path: ${params.ORACLE_HOME}"
+            
+            if (params.HOST_BY_HOST) {
+                echo "🚦 Host-by-host execution was interrupted"
+                echo "📊 Progress: ${env.CURRENT_HOST_INDEX ?: 'Unknown'}/${env.TOTAL_HOSTS ?: 'Unknown'} hosts completed"
+            }
         }
     }
 }

@@ -46,6 +46,7 @@ This document describes the Jenkins CI/CD pipelines available for WebLogic opera
 | `TARGET_HOSTS` | ✅ Required | ✅ Required | ✅ Required | Target host group from inventory |
 | `DRY_RUN` | ✅ Optional | ✅ Optional | ✅ Optional | Run in check mode (dry run) |
 | `VERBOSE` | ✅ Optional | ✅ Optional | ✅ Optional | Enable verbose output |
+| `HOST_BY_HOST` | ✅ Optional | ✅ Optional | ✅ Optional | Execute host by host with user confirmation |
 
 ## 🔧 **Pipeline Features**
 
@@ -56,6 +57,15 @@ This document describes the Jenkins CI/CD pipelines available for WebLogic opera
 - 🎯 **Host Targeting**: Select specific host groups
 - 📝 **Pre/Post Execution Summary**: Clear operation overview
 - 🚨 **Error Handling**: Comprehensive failure reporting
+- 🚦 **Host-by-Host Execution**: Sequential execution with user control
+
+### **Host-by-Host Execution Features**
+- **Sequential Processing**: Execute one host at a time
+- **User Confirmation**: Prompt for confirmation before each host (except first)
+- **Progress Tracking**: Show current host and total progress
+- **Failure Handling**: Ask user to continue or stop on host failures
+- **Pause Between Hosts**: 5-second pause for user review
+- **Parallel Option**: Fallback to execute all hosts simultaneously
 
 ### **Java Upgrade Specific**
 - ☕ **Java Version Management**: Update Java versions in WebLogic files
@@ -95,6 +105,7 @@ pipeline {
         choice(name: 'TARGET_HOSTS', choices: ['prod_weblogic_win', 'prod_weblogic_medgo'])
         booleanParam(name: 'DRY_RUN', defaultValue: false)
         booleanParam(name: 'VERBOSE', defaultValue: true)
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true)
     }
     
     stages {
@@ -136,6 +147,7 @@ pipeline {
         choice(name: 'TARGET_HOSTS', choices: ['prod_weblogic_win', 'prod_weblogic_medgo'])
         booleanParam(name: 'DRY_RUN', defaultValue: false)
         booleanParam(name: 'VERBOSE', defaultValue: true)
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true)
     }
     
     stages {
@@ -174,6 +186,7 @@ pipeline {
         choice(name: 'TARGET_HOSTS', choices: ['prod_weblogic_win', 'prod_weblogic_medgo'])
         booleanParam(name: 'DRY_RUN', defaultValue: false)
         booleanParam(name: 'VERBOSE', defaultValue: true)
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true)
     }
     
     stages {
@@ -205,6 +218,7 @@ JAVA_INSTALLER: jdk-11.0.60-windows-x64.exe
 JAVA_INSTALL_DIR: E:\jdk-11.0.60
 TARGET_HOSTS: prod_weblogic_win
 DRY_RUN: true (first run to test)
+HOST_BY_HOST: true (execute sequentially)
 ```
 
 ### **Scenario 2: WebLogic Patch Application**
@@ -214,6 +228,7 @@ PATCH_FILE: p35247514_122130_Generic.zip
 ORACLE_HOME: E:\Oracle\Middleware\Oracle_Home
 TARGET_HOSTS: prod_weblogic_medgo
 DRY_RUN: true (first run to test)
+HOST_BY_HOST: true (execute sequentially)
 ```
 
 ### **Scenario 3: OPatch Tool Upgrade**
@@ -224,6 +239,7 @@ JAVA_PATH: E:\jdk1.8.0_441\bin\java.exe
 ORACLE_HOME: E:\Oracle\Middleware\Oracle_Home
 TARGET_HOSTS: prod_weblogic_win
 DRY_RUN: true (first run to test)
+HOST_BY_HOST: true (execute sequentially)
 ```
 
 ## 🔍 **Pipeline Execution Flow**
@@ -237,16 +253,46 @@ DRY_RUN: true (first run to test)
 - Shows what will be executed
 - Displays target environment and parameters
 - Confirms dry run mode status
+- Shows host-by-host execution mode
 
-### **Stage 3: Execute Operation**
-- Runs the appropriate Ansible playbook
-- Passes all parameters to the playbook
+### **Stage 3: Get Host List**
+- Retrieves list of hosts from inventory group
+- Displays all hosts that will be processed
+- Shows total count of hosts
+
+### **Stage 4: Execute Operation**
+- **Host-by-Host Mode**: Processes one host at a time with user confirmation
+- **Parallel Mode**: Runs all hosts simultaneously
 - Shows real-time execution output
+- Provides progress tracking
 
-### **Stage 4: Post-Execution Summary**
+### **Stage 5: Post-Execution Summary**
 - Confirms operation completion
 - Shows execution details and timing
 - Provides success/failure status
+- Displays execution mode used
+
+## 🚦 **Host-by-Host Execution Details**
+
+### **How It Works**
+1. **Host Discovery**: Automatically discovers all hosts in the target group
+2. **Sequential Processing**: Executes one host at a time
+3. **User Control**: Prompts for confirmation before each host (except first)
+4. **Progress Tracking**: Shows current host number and total count
+5. **Failure Handling**: On failure, asks user to continue or stop
+6. **Pause Between Hosts**: 5-second pause for user review
+
+### **User Experience**
+- **First Host**: Executes automatically without confirmation
+- **Subsequent Hosts**: User must click "Proceed with [hostname]" to continue
+- **Failure Recovery**: User can choose to continue with next host or stop execution
+- **Progress Visibility**: Clear indication of current progress (e.g., "Host 2/5")
+
+### **Benefits**
+- **Controlled Execution**: User controls the pace and flow
+- **Risk Management**: Can stop execution at any point
+- **Monitoring**: Easy to track progress and identify issues
+- **Flexibility**: Can continue or stop based on results
 
 ## 🚨 **Troubleshooting**
 
@@ -276,6 +322,12 @@ DRY_RUN: true (first run to test)
    ```
    **Solution**: Check SSH key configuration for target hosts
 
+5. **Host-by-Host Execution Stuck**
+   ```
+   Waiting for user input...
+   ```
+   **Solution**: Check Jenkins console for user confirmation prompts
+
 ### **Debug Commands**
 
 ```bash
@@ -284,6 +336,9 @@ ansible -i inventory prod_weblogic_win -m ping
 
 # Check host facts
 ansible -i inventory prod_weblogic_win -m setup
+
+# List hosts in a group
+ansible -i inventory prod_weblogic_win --list-hosts
 
 # Validate playbook syntax
 ansible-playbook -i inventory upgrade_Java_weblogic.yml --syntax-check
@@ -319,6 +374,7 @@ yml/prod/weblogic/
 4. 🔄 **Backup confirmation** for all WebLogic files
 5. ☕ **Java installation** confirmation
 6. 🌐 **WebLogic version** verification
+7. 🚦 **Host-by-host execution** completed with user control
 
 ### **Patch Application Pipeline**
 1. ✅ **All stages completed** without errors
@@ -327,6 +383,7 @@ yml/prod/weblogic/
 4. 📂 **Patch extraction** success
 5. 🔧 **OPatch application** without errors
 6. 📋 **Detailed execution summary** provided
+7. 🚦 **Host-by-host execution** completed with user control
 
 ### **OPatch Upgrade Pipeline**
 1. ✅ **All stages completed** without errors
@@ -335,6 +392,7 @@ yml/prod/weblogic/
 4. 🔧 **OPatch upgrade** success
 5. 📊 **Version verification** successful
 6. 📋 **Detailed execution summary** provided
+7. 🚦 **Host-by-host execution** completed with user control
 
 ## 📞 **Support**
 
@@ -344,7 +402,10 @@ For issues or questions:
 3. Verify all parameters are correctly set
 4. Ensure target hosts are accessible from Jenkins agent
 5. Test with `DRY_RUN=true` first to preview changes
+6. For host-by-host execution, check for user confirmation prompts
 
 ---
 
 **Remember**: Always test with `DRY_RUN=true` first to preview changes before executing in production! 🚀
+
+**Host-by-Host Execution**: Use this mode for controlled, sequential execution with user oversight! 🚦
