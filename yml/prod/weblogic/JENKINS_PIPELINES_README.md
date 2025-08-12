@@ -64,7 +64,7 @@ This document describes the Jenkins CI/CD pipelines available for WebLogic opera
 - **User Confirmation**: Prompt for confirmation before each host (except first)
 - **Progress Tracking**: Show current host and total progress
 - **Failure Handling**: Ask user to continue or stop on host failures
-- **Pause Between Hosts**: 5-second pause for user review
+- **Pause Between Hosts**: 30-minute pause for comprehensive user review
 - **Parallel Option**: Fallback to execute all hosts simultaneously
 
 ### **Java Upgrade Specific**
@@ -280,7 +280,7 @@ HOST_BY_HOST: true (execute sequentially)
 3. **User Control**: Prompts for confirmation before each host (except first)
 4. **Progress Tracking**: Shows current host number and total count
 5. **Failure Handling**: On failure, asks user to continue or stop
-6. **Pause Between Hosts**: 5-second pause for user review
+6. **Pause Between Hosts**: 30-minute pause for comprehensive user review
 
 ### **User Experience**
 - **First Host**: Executes automatically without confirmation
@@ -349,63 +349,3 @@ ansible-playbook -i inventory upgrade_opatch_windows.yml --syntax-check
 ## 📚 **File Structure**
 
 ```
-yml/prod/weblogic/
-├── upgrade_Java_weblogic.yml      # Java upgrade playbook
-├── Apply_Patch_weblogic.yml       # Patch application playbook
-├── upgrade_opatch_windows.yml     # OPatch upgrade playbook
-├── Jenkinsfile                     # Java upgrade pipeline
-├── Jenkinsfile_Patch              # Patch application pipeline
-├── Jenkinsfile_OPatch_Upgrade     # OPatch upgrade pipeline
-├── java_version_update.yml         # Java upgrade configuration
-├── patch_config.yml               # Patch application configuration
-├── opatch_upgrade_config.yml      # OPatch upgrade configuration
-├── README.md                      # Java upgrade documentation
-├── PATCH_README.md                # Patch application documentation
-├── OPATCH_UPGRADE_README.md       # OPatch upgrade documentation
-└── JENKINS_PIPELINES_README.md    # This file
-```
-
-## 🎉 **Success Indicators**
-
-### **Java Upgrade Pipeline**
-1. ✅ **All stages completed** without errors
-2. 📊 **Post-execution summary** with execution details
-3. 📝 **Ansible output** showing successful file updates
-4. 🔄 **Backup confirmation** for all WebLogic files
-5. ☕ **Java installation** confirmation
-6. 🌐 **WebLogic version** verification
-7. 🚦 **Host-by-host execution** completed with user control
-
-### **Patch Application Pipeline**
-1. ✅ **All stages completed** without errors
-2. 📊 **Post-execution summary** with execution details
-3. 📦 **Patch file transfer** confirmation
-4. 📂 **Patch extraction** success
-5. 🔧 **OPatch application** without errors
-6. 📋 **Detailed execution summary** provided
-7. 🚦 **Host-by-host execution** completed with user control
-
-### **OPatch Upgrade Pipeline**
-1. ✅ **All stages completed** without errors
-2. 📊 **Post-execution summary** with execution details
-3. 📦 **OPatch JAR copy** confirmation
-4. 🔧 **OPatch upgrade** success
-5. 📊 **Version verification** successful
-6. 📋 **Detailed execution summary** provided
-7. 🚦 **Host-by-host execution** completed with user control
-
-## 📞 **Support**
-
-For issues or questions:
-1. Check the Jenkins console output for detailed error messages
-2. Review the Ansible playbook logs
-3. Verify all parameters are correctly set
-4. Ensure target hosts are accessible from Jenkins agent
-5. Test with `DRY_RUN=true` first to preview changes
-6. For host-by-host execution, check for user confirmation prompts
-
----
-
-**Remember**: Always test with `DRY_RUN=true` first to preview changes before executing in production! 🚀
-
-**Host-by-Host Execution**: Use this mode for controlled, sequential execution with user oversight! 🚦

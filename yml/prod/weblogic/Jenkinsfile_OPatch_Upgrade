@@ -162,8 +162,8 @@ pipeline {
                         
                         // Pause between hosts (except for the last one)
                         if (currentHostIndex < totalHosts) {
-                            echo "⏸️  Pausing before next host..."
-                            sleep 5
+                            echo "⏸️  Pausing 30 minutes before next host for user review..."
+                            sleep 1800
                         }
                     }
                     
