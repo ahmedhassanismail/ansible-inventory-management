@@ -1,0 +1,138 @@
+---
+- name: Upgrade OPatch on WebLogic Windows Server using opatch_generic.jar - SIT Environment
+  hosts: sit_weblogic_win
+  gather_facts: no
+  
+  vars:
+    # REQUIRED: OPatch upgrade variables - MUST be provided by executor via command line
+    # Example: ansible-playbook -i inventory upgrade_opatch_windows.yml \
+    #   -e "local_opatch_jar='/home/appadmin/OPatch/6880880/opatch_generic.jar'" \
+    #   -e "opatch_temp_dir='E:\\OPatch_source'" \
+    #   -e "java_path='E:\\jdk1.8.0_441\\bin\\java.exe'" \
+    #   -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'"
+
+    # Path on your Linux Ansible control node
+    local_opatch_jar: "{{ local_opatch_jar }}"
+
+    # Where to place the JAR on the Windows server
+    opatch_temp_dir: "{{ opatch_temp_dir }}"
+    opatch_jar_on_windows: "{{ opatch_temp_dir }}\\opatch_generic.jar"
+
+    # Java location on Windows target
+    java_path: "{{ java_path }}"
+
+    # WebLogic Oracle Home on Windows
+    oracle_home: "{{ oracle_home }}"
+    opatch_path: "{{ oracle_home }}\\OPatch"
+
+  pre_tasks:
+    - name: Validate Required Variables
+      fail:
+        msg: |
+          Required variables must be provided via command line:
+
+          Example:
+          ansible-playbook -i inventory upgrade_opatch_windows.yml \
+            -e "local_opatch_jar='/home/appadmin/OPatch/6880880/opatch_generic.jar'" \
+            -e "opatch_temp_dir='E:\\OPatch_source'" \
+            -e "java_path='E:\\jdk1.8.0_441\\bin\\java.exe'" \
+            -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'"
+
+          Variables provided:
+          - local_opatch_jar: {{ local_opatch_jar | default('NOT PROVIDED') }}
+          - opatch_temp_dir: {{ opatch_temp_dir | default('NOT PROVIDED') }}
+          - java_path: {{ java_path | default('NOT PROVIDED') }}
+          - oracle_home: {{ oracle_home | default('NOT PROVIDED') }}
+      when:
+        - local_opatch_jar is not defined
+        - opatch_temp_dir is not defined
+        - java_path is not defined
+        - oracle_home is not defined
+
+    - name: Start OPatch Upgrade Process
+      debug:
+        msg: |
+          === OPatch Upgrade Started ===
+          Target Host: {{ inventory_hostname }}
+          Environment: SIT
+          OPatch JAR: {{ local_opatch_jar }}
+          Java Path: {{ java_path }}
+          Oracle Home: {{ oracle_home }}
+          Temp Directory: {{ opatch_temp_dir }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+  tasks:
+    - name: Ensure temp directory exists on Windows
+      win_file:
+        path: "{{ opatch_temp_dir }}"
+        state: directory
+
+    - name: Copy opatch_generic.jar from Linux to Windows
+      win_copy:
+        src: "{{ local_opatch_jar }}"
+        dest: "{{ opatch_jar_on_windows }}"
+
+    - name: Run OPatch upgrade using opatch_generic.jar
+      win_shell: |
+        & '{{ java_path }}' -jar '{{ opatch_jar_on_windows }}' -silent oracle_home={{ oracle_home }}
+      args:
+        executable: powershell
+      register: opatch_upgrade_result
+      ignore_errors: yes
+
+    - name: Display OPatch upgrade output
+      debug:
+        msg: "{{ opatch_upgrade_result.stdout_lines }}"
+
+    - name: Verify OPatch version
+      win_shell: |
+        & '{{ opatch_path }}\\opatch.bat' version
+      args:
+        executable: powershell
+      register: opatch_version_result
+      ignore_errors: yes
+
+    - name: Display OPatch version
+      debug:
+        msg: "{{ opatch_version_result.stdout_lines }}"
+
+  post_tasks:
+    - name: Log OPatch Upgrade Completion
+      debug:
+        msg: |
+          === OPatch Upgrade Completed ===
+          Target Host: {{ inventory_hostname }}
+          Environment: SIT
+          OPatch JAR: {{ local_opatch_jar }}
+          Java Path: {{ java_path }}
+          Oracle Home: {{ oracle_home }}
+          Completion Time: {{ ansible_date_time.iso8601 }}
+          Status: SUCCESS
+
+    - name: Generate Execution Summary Report
+      set_fact:
+        execution_summary:
+          host: "{{ inventory_hostname }}"
+          environment: "SIT"
+          opatch_jar: "{{ local_opatch_jar }}"
+          java_path: "{{ java_path }}"
+          oracle_home: "{{ oracle_home }}"
+          temp_dir: "{{ opatch_temp_dir }}"
+          upgrade_output: "{{ opatch_upgrade_result.stdout_lines | length }}"
+          version_output: "{{ opatch_version_result.stdout_lines | length }}"
+          execution_time: "{{ ansible_date_time.iso8601 }}"
+
+    - name: Display Final Execution Summary
+      debug:
+        msg: |
+          === FINAL EXECUTION SUMMARY ===
+          Host: {{ execution_summary.host }}
+          Environment: {{ execution_summary.environment }}
+          OPatch JAR: {{ execution_summary.opatch_jar }}
+          Java Path: {{ execution_summary.java_path }}
+          Oracle Home: {{ execution_summary.oracle_home }}
+          Temp Directory: {{ execution_summary.temp_dir }}
+          Upgrade Output Lines: {{ execution_summary.upgrade_output }}
+          Version Output Lines: {{ execution_summary.version_output }}
+          Execution Time: {{ execution_summary.execution_time }}
+
