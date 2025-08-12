@@ -1,132 +1,156 @@
-# WebLogic Upgrade Playbook - Search Pattern Variables
+# WebLogic Upgrade Playbook - Java Version Replacement
 
 ## Overview
 
-This playbook uses configurable search patterns to find and replace text in WebLogic configuration files. The search patterns are defined as variables at the beginning of the playbook and can be easily customized.
+This playbook is designed to update Java versions in WebLogic configuration files. **The executor MUST provide the old and new Java versions via command line variables.**
 
-## Key Variables
+## What It Does
 
-### **File Replacement Variables**
-The `file_replacements` list defines what to search for and replace in each file:
+The playbook will:
+1. **Validate** that required Java version variables are provided
+2. **Backup** all WebLogic configuration files with timestamps
+3. **Search** for the old Java version in each file
+4. **Replace** it with the new Java version
+5. **Verify** the changes were made successfully
 
-```yaml
-file_replacements:
-  - file: "path/to/file"
-    search_pattern: "text to search for"
-    replace_with: "text to replace with"
-    description: "what this replacement does"
-```
+## ⚠️ **REQUIRED VARIABLES**
 
-### **Search Pattern Variables**
-These variables define the exact text to search for in each file:
+**The executor MUST provide these variables when running the playbook:**
 
-- `search_java_home`: Text to find for Java home (default: "JAVA_HOME=")
-- `search_weblogic_home`: Text to find for WebLogic home (default: "WL_HOME=")
-- `search_nodemanager_java`: Text to find for Node Manager Java (default: "JavaHome=")
-- `search_setnm_java`: Text to find in setNMJavaHome.cmd (default: "set JAVA_HOME=")
-- `search_domain_java`: Text to find in setDomainEnv.cmd (default: "set JAVA_HOME=")
-- `search_domain_path`: Text to find for PATH in setDomainEnv.cmd (default: "set PATH=")
+- `old_java_version` - The Java version to search for and replace
+- `new_java_version` - The new Java version to replace with
+
+## Files That Will Be Updated
+
+- `.globalEnv.properties` - Oracle Global Environment Properties
+- `nodemanager.properties` - Node Manager Properties  
+- `setNMJavaHome.cmd` - Node Manager Java Home Script
+- `setDomainEnv.cmd` - Domain Environment Script
 
 ## Usage Examples
 
-### **1. Use Default Search Patterns**
+### **1. Command Line Variables (REQUIRED)**
 ```bash
-# Run with default patterns
-ansible-playbook -i inventory upgrade_Java_weblogic.yml
-```
-
-### **2. Override Specific Search Patterns**
-```bash
-# Override specific patterns
+# Replace jdk-11.0.12 with jdk-11.0.60
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
-  -e "search_java_home='ORACLE_JAVA_HOME='" \
-  -e "search_weblogic_home='WEBLOGIC_HOME='"
+  -e "old_java_version='jdk-11.0.12'" \
+  -e "new_java_version='jdk-11.0.60'"
 ```
 
-### **3. Use Custom Configuration File**
+### **2. Configuration File**
 ```bash
-# Use a custom configuration file
+# Use the java_version_update.yml file
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
-  -e @custom_search_patterns.yml
+  -e @java_version_update.yml
 ```
 
-## Customizing Search Patterns
+### **3. Different Version Examples**
+```bash
+# Update from JDK 8 to JDK 11
+ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+  -e "old_java_version='jdk-8.0.441'" \
+  -e "new_java_version='jdk-11.0.60'"
 
-### **Example 1: Different Variable Names**
-If your files use different variable names:
+# Update to newer JDK 11 version
+ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+  -e "old_java_version='jdk-11.0.12'" \
+  -e "new_java_version='jdk-11.0.75'"
 
-```yaml
-# custom_patterns.yml
-search_java_home: "ORACLE_JAVA_HOME="
-search_weblogic_home: "WEBLOGIC_HOME="
-search_nodemanager_java: "NODEMANAGER_JAVA="
+# Update from JDK 11 to JDK 17
+ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+  -e "old_java_version='jdk-11.0.60'" \
+  -e "new_java_version='jdk-17.0.9'"
 ```
 
-### **Example 2: Different File Formats**
-If your files have different formats:
+## Configuration File Example
 
 ```yaml
-# custom_patterns.yml
-search_java_home: "JAVA_HOME:"
-search_weblogic_home: "WL_HOME:"
-search_nodemanager_java: "JavaHome:"
-```
+# java_version_update.yml
+---
+# REQUIRED: Old Java version to search for
+old_java_version: "jdk-11.0.12"
 
-### **Example 3: Environment-Specific Patterns**
-For different environments:
-
-```yaml
-# prod_patterns.yml
-search_java_home: "PROD_JAVA_HOME="
-search_weblogic_home: "PROD_WL_HOME="
-
-# dr_patterns.yml
-search_java_home: "DR_JAVA_HOME="
-search_weblogic_home: "DR_WL_HOME="
+# REQUIRED: New Java version to replace with
+new_java_version: "jdk-11.0.60"
 ```
 
 ## How It Works
 
-1. **Backup**: Original files are backed up with timestamps
-2. **Search**: The playbook searches for the specified text patterns in each file
-3. **Replace**: When found, the text is replaced with the new values
-4. **Verify**: File content is verified after replacement
+1. **Validation**: Checks that required variables are provided
+2. **Backup**: Creates timestamped backups of all files
+3. **Search**: Looks for the old Java version string in each file
+4. **Replace**: Updates the old version with the new version
+5. **Verify**: Confirms the changes were applied
 
 ## File Structure
 
 ```
 yml/prod/weblogic/
 ├── upgrade_Java_weblogic.yml      # Main playbook
-├── custom_search_patterns.yml     # Example custom patterns
+├── java_version_update.yml         # Java version configuration
 ├── rollback_weblogic.yml          # Rollback playbook
 └── README.md                      # This file
 ```
 
 ## Troubleshooting
 
+### **Missing Variables Error**
+If you see this error:
+```
+Required variables must be provided via command line:
+- old_java_version: NOT PROVIDED
+- new_java_version: NOT PROVIDED
+```
+
+**Solution**: Provide the variables as shown in the usage examples above.
+
 ### **Check What Will Be Replaced**
 ```bash
 # Run with verbose output to see what's being searched
-ansible-playbook -i inventory upgrade_Java_weblogic.yml -vvv
+ansible-playbook -i inventory upgrade_Java_weblogic.yml \
+  -e "old_java_version='jdk-11.0.12'" \
+  -e "new_java_version='jdk-11.0.60'" \
+  -vvv
 ```
 
-### **Test Search Patterns**
+### **Test the Replacement**
 ```bash
-# Test specific patterns
+# Test without making changes
 ansible-playbook -i inventory upgrade_Java_weblogic.yml \
-  -e "search_java_home='TEST_PATTERN='" \
+  -e "old_java_version='jdk-11.0.12'" \
+  -e "new_java_version='jdk-11.0.60'" \
   --check
 ```
 
 ### **Common Issues**
-1. **Pattern Not Found**: Check if the search text matches exactly what's in your files
-2. **Wrong Replacement**: Verify the `replace_with` values are correct
-3. **File Not Found**: Ensure the file paths in `file_replacements` are correct
+1. **Variables Not Provided**: Always include `-e` parameters for Java versions
+2. **Version Not Found**: Check if the old version exists in your files
+3. **Wrong Replacement**: Verify the new version string is correct
+4. **File Not Found**: Ensure WebLogic files exist in expected locations
 
 ## Best Practices
 
-1. **Always Backup**: The playbook automatically creates backups before making changes
+1. **Always Provide Variables**: Never run without specifying Java versions
 2. **Test First**: Use `--check` mode to preview changes
-3. **Customize Patterns**: Create environment-specific pattern files
-4. **Version Control**: Keep your custom pattern files in version control
-5. **Document Changes**: Update patterns when WebLogic configurations change
+3. **Verify Changes**: Check that the correct versions were updated
+4. **Backup Ready**: The playbook automatically creates backups
+5. **Rollback Ready**: Use the rollback playbook if needed
+
+## Example Output
+
+When you run the playbook, you'll see:
+```
+=== WebLogic Upgrade Started ===
+Target Host: your-server
+Environment: PROD
+Java Version Update: jdk-11.0.12 → jdk-11.0.60
+Timestamp: 2024-01-15T10:30:00Z
+
+=== WebLogic Configuration Updates ===
+File: E:\Oracle\Middleware\Oracle_Home\oui\.globalEnv.properties
+Search Pattern: jdk-11.0.12
+Replace With: jdk-11.0.60
+Description: Update Java version from jdk-11.0.12 to jdk-11.0.60
+```
+
+**Remember: The executor MUST provide the Java version variables for the playbook to work!** 🎯
