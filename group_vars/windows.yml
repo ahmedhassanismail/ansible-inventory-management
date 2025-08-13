@@ -1,10 +1,15 @@
 ---
 # Windows Server Variables
-# This file contains all common variables for Windows servers
+# This file contains non-sensitive common variables for Windows servers
+# Sensitive variables are stored in windows_vault.yml (encrypted with ansible-vault)
 
+# Connection method (non-sensitive)
 ansible_connection: winrm
-ansible_user: "tawn.com\\ansadmin"
-ansible_password: "iW=*X8{mI1~R^5tB"
-ansible_port: 5986
-ansible_winrm_transport: ntlm
-ansible_winrm_server_cert_validation: ignore
+
+# Note: Sensitive variables like ansible_user, ansible_password, etc.
+# are now stored in windows_vault.yml and encrypted with ansible-vault
+# 
+# To use this setup:
+# 1. Encrypt windows_vault.yml: ansible-vault encrypt group_vars/windows_vault.yml
+# 2. Run playbooks with: ansible-playbook --ask-vault-pass -i inventory playbook.yml
+# 3. Or use a vault password file: ansible-playbook --vault-password-file .vault_pass -i inventory playbook.yml

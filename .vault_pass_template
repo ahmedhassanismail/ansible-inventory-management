@@ -1,0 +1,12 @@
+# Vault Password File Template
+# 
+# 1. Copy this file to .vault_pass
+# 2. Replace 'your_vault_password_here' with your actual vault password
+# 3. Make sure .vault_pass has restricted permissions (chmod 600 on Linux/Mac)
+# 4. Add .vault_pass to .gitignore to prevent accidental commits
+#
+# Example:
+# your_vault_password_here
+#
+# Usage:
+# ansible-playbook --vault-password-file .vault_pass -i inventory playbook.yml

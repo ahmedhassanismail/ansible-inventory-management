@@ -1,0 +1,41 @@
+---
+# OPatch Upgrade Configuration
+# This file shows ALL required variables for the OPatch upgrade playbook
+# Usage: ansible-playbook -i inventory upgrade_opatch_windows.yml -e @opatch_upgrade_config.yml
+
+# REQUIRED: Path to OPatch JAR file on Ansible server
+local_opatch_jar: "/home/appadmin/OPatch/6880880/opatch_generic.jar"
+
+# REQUIRED: Temporary directory on Windows server for OPatch JAR
+opatch_temp_dir: "E:\\OPatch_source"
+
+# REQUIRED: Java executable path on Windows server
+java_path: "E:\\jdk1.8.0_441\\bin\\java.exe"
+
+# REQUIRED: Oracle Home directory path on Windows server
+oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+
+# Alternative examples you can use:
+
+# Example 1: Different OPatch version
+# local_opatch_jar: "/home/appadmin/OPatch/6880881/opatch_generic.jar"
+# opatch_temp_dir: "E:\\OPatch_source_6880881"
+
+# Example 2: Different Java version
+# java_path: "E:\\jdk-11.0.60\\bin\\java.exe"
+
+# Example 3: Different Oracle Home path
+# oracle_home: "D:\\Oracle\\Middleware\\Oracle_Home"
+# opatch_temp_dir: "D:\\OPatch_source"
+
+# Example 4: Different source directory
+# local_opatch_jar: "/opt/opatch/6880880/opatch_generic.jar"
+
+# IMPORTANT: ALL these variables MUST be provided when running the playbook
+# Either use this file with -e @opatch_upgrade_config.yml
+# Or provide them directly in the command line:
+# ansible-playbook -i inventory upgrade_opatch_windows.yml \
+#   -e "local_opatch_jar='/home/appadmin/OPatch/6880880/opatch_generic.jar'" \
+#   -e "opatch_temp_dir='E:\\OPatch_source'" \
+#   -e "java_path='E:\\jdk1.8.0_441\\bin\\java.exe'" \
+#   -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'"

@@ -1,0 +1,314 @@
+---
+- name: Backup, Replace WebLogic Files, Uninstall & Install Java on Windows Server - MedGo Business Line (DR Environment)
+  hosts: windows_dr_medgo
+  gather_facts: no
+  
+  vars:
+    # REQUIRED: Java upgrade variables - MUST be provided by executor via command line
+    # Example: ansible-playbook --vault-password-file .vault_pass -i inventory upgrade_Java_weblogic.yml \
+    #   -e "old_java_version='jdk-11.0.12'" \
+    #   -e "new_java_version='jdk-11.0.60'" \
+    #   -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+    #   -e "java_install_dir='E:\\jdk-11.0.60'" \
+    #   -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'" \
+    #   -e "backup_dir='E:\\Oracle\\backup'" \
+    #   -e "java_source_dir='E:\\Java_source'"
+
+    # Oracle and WebLogic paths
+    oracle_home: "{{ oracle_home }}"
+    backup_dir: "{{ backup_dir }}"
+    java_source_dir: "{{ java_source_dir }}"
+
+    # WebLogic domain configuration
+    weblogic_domain: "{{ weblogic_domain | default('medgo_domain') }}"
+
+    # Source files on Ansible server
+    ansible_source_dir: "{{ ansible_source_dir | default('/home/appadmin/Upgrade_weblogic_files') }}"
+
+    # File Replacement Variables - Simple text replacement
+    # Replace old Java version with new Java version in all WebLogic files
+    # These versions are provided by the executor via command line
+    file_replacements:
+      # .globalEnv.properties file
+      - file: "{{ oracle_home }}\\oui\\.globalEnv.properties"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
+
+      # nodemanager.properties file
+      - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
+
+      # setNMJavaHome.cmd file
+      - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
+
+      # setDomainEnv.cmd file
+      - file: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
+        search_pattern: "{{ old_java_version }}"
+        replace_with: "{{ new_java_version }}"
+        description: "Update Java version from {{ old_java_version }} to {{ new_java_version }}"
+
+    # REQUIRED variables - MUST be provided by executor via command line
+    # Example: ansible-playbook --vault-password-file .vault_pass -i inventory upgrade_Java_weblogic.yml \
+    #   -e "old_java_version='jdk-11.0.12'" \
+    #   -e "new_java_version='jdk-11.0.60'" \
+    #   -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+    #   -e "java_install_dir='E:\\jdk-11.0.60'"
+
+    # Java version variables for file replacement
+    old_java_version: "{{ old_java_version }}"
+    new_java_version: "{{ new_java_version }}"
+
+    # Java installation variables
+    java_installer: "{{ java_installer }}"
+    java_install_dir: "{{ java_install_dir }}"
+
+  pre_tasks:
+    - name: Validate Required Variables
+      fail:
+        msg: |
+          Required variables must be provided via command line:
+
+          Example:
+          ansible-playbook --vault-password-file .vault_pass -i inventory upgrade_Java_weblogic.yml \
+            -e "old_java_version='jdk-11.0.12'" \
+            -e "new_java_version='jdk-11.0.60'" \
+            -e "java_installer='jdk-11.0.60-windows-x64.exe'" \
+            -e "java_install_dir='E:\\jdk-11.0.60'" \
+            -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'" \
+            -e "backup_dir='E:\\Oracle\\backup'" \
+            -e "java_source_dir='E:\\Java_source'"
+
+          Variables provided:
+          - old_java_version: {{ old_java_version | default('NOT PROVIDED') }}
+          - new_java_version: {{ new_java_version | default('NOT PROVIDED') }}
+          - java_installer: {{ java_installer | default('NOT PROVIDED') }}
+          - java_install_dir: {{ java_install_dir | default('NOT PROVIDED') }}
+          - oracle_home: {{ oracle_home | default('NOT PROVIDED') }}
+          - backup_dir: {{ backup_dir | default('NOT PROVIDED') }}
+          - java_source_dir: {{ java_source_dir | default('NOT PROVIDED') }}
+      when:
+        - old_java_version is not defined
+        - new_java_version is not defined
+        - java_installer is not defined
+        - java_install_dir is not defined
+        - oracle_home is not defined
+        - backup_dir is not defined
+        - java_source_dir is not defined
+
+    - name: Start WebLogic Upgrade Process
+      debug:
+        msg: |
+          === WebLogic Upgrade Started ===
+          Target Host: {{ inventory_hostname }}
+          Business Line: MedGo
+          Environment: DR
+          Java Version Update: {{ old_java_version }} → {{ new_java_version }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+
+  tasks:
+    ### Ensure Backup Directory Exists
+    - name: Create Backup Directory
+      win_file:
+        path: "{{ backup_dir }}"
+        state: directory
+
+    ### Define WebLogic Files for Backup
+    - name: Set File Backup List
+      set_fact:
+        files_to_backup:
+          - path: "{{ oracle_home }}\\oui\\.globalEnv.properties"
+            description: "Oracle Global Environment Properties"
+          - path: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\nodemanager\\nodemanager.properties"
+            description: "Node Manager Properties"
+          - path: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setNMJavaHome.cmd"
+            description: "Node Manager Java Home Script"
+          - path: "{{ oracle_home }}\\user_projects\\domains\\{{ weblogic_domain }}\\bin\\setDomainEnv.cmd"
+            description: "Domain Environment Script"
+
+    ### Backup WebLogic Configuration Files
+    - name: Backup WebLogic Files with Timestamp
+      win_shell: |
+        $filePath = "{{ item.path }}"
+        $backupDir = "{{ backup_dir }}"
+        $timestamp = Get-Date -Format 'yyyyMMddHHmmss'
+        $fileName = [System.IO.Path]::GetFileName($filePath)
+        $backupFile = "$backupDir\$fileName`_$timestamp"
+        
+        If (Test-Path $filePath) {
+            Copy-Item -Path $filePath -Destination $backupFile
+            Write-Output "Backup created at $backupFile"
+        } else {
+            Write-Output "No existing file to backup: $filePath"
+        }
+      args:
+        executable: powershell
+      loop: "{{ files_to_backup }}"
+      register: backup_results
+
+    - name: Display Backup Status
+      debug:
+        msg: "{{ backup_results.results | map(attribute='stdout_lines') | list }}"
+
+    ### Update WebLogic Configuration Files with New Java Version
+    - name: Update WebLogic Files with New Java Version
+      win_lineinfile:
+        path: "{{ item.file }}"
+        regexp: "{{ item.search_pattern }}"
+        line: "{{ item.replace_with }}"
+        backup: yes
+      loop: "{{ file_replacements }}"
+      register: file_update_results
+      ignore_errors: yes
+
+    - name: Display File Update Results
+      debug:
+        msg: "{{ file_update_results }}"
+
+    ### Uninstall Existing Java (Safe, Tolerant)
+    - name: Uninstall existing Java versions
+      win_shell: |
+        $apps = Get-WmiObject -Class Win32_Product | Where-Object {
+          $_.Name -like "Java*" -or $_.Name -like "*JDK*"
+        }
+
+        foreach ($app in $apps) {
+          Write-Output "Uninstalling: $($app.Name)"
+          try {
+            $null = $app.Uninstall()
+          } catch {
+            Write-Output "Failed to uninstall $($app.Name): $($_.Exception.Message)"
+          }
+        }
+
+        if (-not $apps) {
+          Write-Output "No existing Java installations found."
+        }
+      args:
+        executable: powershell
+      register: uninstall_java_result
+      ignore_errors: true
+
+    - name: Display Java Uninstall Results
+      debug:
+        msg: "{{ uninstall_java_result.stdout_lines }}"
+
+    ### Kill All Java Processes Before Installation
+    - name: Kill all running Java processes
+      win_shell: |
+        $javaProcs = Get-Process java -ErrorAction SilentlyContinue
+        if ($javaProcs) {
+          Stop-Process -Name java -Force
+          Write-Output "Java processes killed."
+        } else {
+          Write-Output "No Java processes running."
+        }
+      args:
+        executable: powershell
+      register: kill_java_result
+
+    - name: Display Java Kill Result
+      debug:
+        msg: "{{ kill_java_result.stdout_lines }}"
+
+    ### Copy Java Installer to Windows Server
+    - name: Copy Java Installer to Windows Server
+      win_copy:
+        src: "{{ ansible_source_dir }}/{{ java_installer }}"
+        dest: "{{ java_source_dir }}\\{{ java_installer }}"
+
+    ### Install Java JDK
+    - name: Install Java JDK
+      win_shell: "{{ java_source_dir }}\\{{ java_installer }} /s INSTALLDIR={{ java_install_dir }}"
+      args:
+        chdir: "{{ java_source_dir }}"
+
+    ### Set JAVA_HOME Environment Variable
+    - name: Set JAVA_HOME Environment Variable
+      win_environment:
+        name: JAVA_HOME
+        value: "{{ java_install_dir }}"
+        level: machine
+
+    ### Add Java to System PATH
+    - name: Add Java to System PATH
+      win_path:
+        elements:
+          - "{{ java_install_dir }}\\bin"
+
+    ### Get WebLogic Version Using Installed Java
+    - name: Get WebLogic Version
+      win_shell: |
+        $env:JAVA_HOME = "{{ java_install_dir }}"
+        $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+        & "$env:JAVA_HOME\bin\java.exe" -cp "{{ oracle_home }}\wlserver\server\lib\weblogic.jar" weblogic.version
+      register: weblogic_version_output
+
+    - name: Display WebLogic Version
+      debug:
+        msg: "{{ weblogic_version_output.stdout_lines }}"
+
+    ### Verify Java Installation
+    - name: Verify Java Installation
+      win_shell: |
+        $env:JAVA_HOME = "{{ java_install_dir }}"
+        $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+        & "$env:JAVA_HOME\bin\java.exe" -version
+      register: java_version_output
+
+    - name: Display Java Version
+      debug:
+        msg: "{{ java_version_output.stdout_lines }}"
+
+  post_tasks:
+    - name: Log WebLogic Upgrade Completion
+      debug:
+        msg: |
+          === WebLogic Upgrade Completed ===
+          Target Host: {{ inventory_hostname }}
+          Business Line: MedGo
+          Environment: DR
+          Java Version Update: {{ old_java_version }} → {{ new_java_version }}
+          Completion Time: {{ ansible_date_time.iso8601 }}
+          Status: SUCCESS
+
+    - name: Generate Execution Summary Report
+      set_fact:
+        execution_summary:
+          host: "{{ inventory_hostname }}"
+          business_line: "MedGo"
+          environment: "DR"
+          old_java_version: "{{ old_java_version }}"
+          new_java_version: "{{ new_java_version }}"
+          java_installer: "{{ java_installer }}"
+          java_install_dir: "{{ java_install_dir }}"
+          oracle_home: "{{ oracle_home }}"
+          backup_dir: "{{ backup_dir }}"
+          java_source_dir: "{{ java_source_dir }}"
+          weblogic_domain: "{{ weblogic_domain }}"
+          backup_files: "{{ backup_results.results | length }}"
+          files_updated: "{{ file_update_results.results | length }}"
+          execution_time: "{{ ansible_date_time.iso8601 }}"
+
+    - name: Display Final Execution Summary
+      debug:
+        msg: |
+          === FINAL EXECUTION SUMMARY ===
+          Host: {{ execution_summary.host }}
+          Business Line: {{ execution_summary.business_line }}
+          Environment: {{ execution_summary.environment }}
+          Java Version Update: {{ execution_summary.old_java_version }} → {{ execution_summary.new_java_version }}
+          Java Installer: {{ execution_summary.java_installer }}
+          Java Installation Directory: {{ execution_summary.java_install_dir }}
+          Oracle Home: {{ execution_summary.oracle_home }}
+          Backup Directory: {{ execution_summary.backup_dir }}
+          Java Source Directory: {{ execution_summary.java_source_dir }}
+          WebLogic Domain: {{ execution_summary.weblogic_domain }}
+          Files Backed Up: {{ execution_summary.backup_files }}
+          Files Updated: {{ execution_summary.files_updated }}
+          Execution Time: {{ execution_summary.execution_time }}

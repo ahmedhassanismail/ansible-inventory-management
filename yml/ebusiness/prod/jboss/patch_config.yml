@@ -1,0 +1,50 @@
+---
+# WebLogic Patch Configuration
+# This file shows ALL required variables for the WebLogic patch playbook
+# Usage: ansible-playbook -i inventory Apply_Patch_weblogic.yml -e @patch_config.yml
+
+# REQUIRED: Patch identification number
+patch_number: "35247514"
+
+# REQUIRED: Patch file name (ZIP file)
+patch_file: "p35247514_122130_Generic.zip"
+
+# REQUIRED: Oracle Home directory path on Windows server
+oracle_home: "E:\\Oracle\\Middleware\\Oracle_Home"
+
+# REQUIRED: Source patch file path on Ansible server
+patch_local_path: "/home/appadmin/patches/p35247514_122130_Generic.zip"
+
+# REQUIRED: Destination patch file path on Windows server
+patch_remote_path: "E:\\Oracle\\patches\\p35247514_122130_Generic.zip"
+
+# REQUIRED: Patch extraction directory on Windows server
+patch_extract_path: "E:\\Oracle\\Middleware\\patches\\35247514"
+
+# Alternative examples you can use:
+
+# Example 1: Different patch number
+# patch_number: "35247515"
+# patch_file: "p35247515_122130_Generic.zip"
+# patch_local_path: "/home/appadmin/patches/p35247515_122130_Generic.zip"
+# patch_remote_path: "E:\\Oracle\\patches\\p35247515_122130_Generic.zip"
+# patch_extract_path: "E:\\Oracle\\Middleware\\patches\\35247515"
+
+# Example 2: Different Oracle Home path
+# oracle_home: "D:\\Oracle\\Middleware\\Oracle_Home"
+# patch_remote_path: "D:\\Oracle\\patches\\p35247514_122130_Generic.zip"
+# patch_extract_path: "D:\\Oracle\\Middleware\\patches\\35247514"
+
+# Example 3: Different source directory
+# patch_local_path: "/opt/patches/p35247514_122130_Generic.zip"
+
+# IMPORTANT: ALL these variables MUST be provided when running the playbook
+# Either use this file with -e @patch_config.yml
+# Or provide them directly in the command line:
+# ansible-playbook -i inventory Apply_Patch_weblogic.yml \
+#   -e "patch_number='35247514'" \
+#   -e "patch_file='p35247514_122130_Generic.zip'" \
+#   -e "oracle_home='E:\\Oracle\\Middleware\\Oracle_Home'" \
+#   -e "patch_local_path='/home/appadmin/patches/p35247514_122130_Generic.zip'" \
+#   -e "patch_remote_path='E:\\Oracle\\patches\\p35247514_122130_Generic.zip'" \
+#   -e "patch_extract_path='E:\\Oracle\\Middleware\\patches\\35247514'"

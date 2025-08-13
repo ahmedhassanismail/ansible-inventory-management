@@ -361,8 +361,8 @@ redhat_dev_marine
 
 [redhat_dev_digital_tomcat]
 # Add your development RedHat Digital Tomcat servers here
-# Example: dev-digital-tomcat-01 ansible_host=192.168.4.70
-# Example: dev-digital-tomcat-02 ansible_host=192.168.4.71
+HQV-DH-APPD01.TAWN.COM ansible_host=10.24.6.54
+
 
 [redhat_dev_filenet]
 # Add your development RedHat FileNet Tomcat servers here
@@ -469,8 +469,10 @@ windows_prod_marine
 
 [windows_prod_docmosis]
 # Add your production Windows Docmosis Tomcat servers here
-# Example: prod-win-docmosis-01 ansible_host=192.168.1.180
-# Example: prod-win-docmosis-02 ansible_host=192.168.1.181
+HQV-DOC-APPP01.TAWN.COM ansible_host=10.24.11.85
+HQV-DOC-APPP03.TAWN.COM ansible_host=10.24.11.160
+
+
 
 [windows_prod_digital_tomcat]
 # Add your production Windows Digital Tomcat servers here
@@ -484,16 +486,18 @@ windows_prod_marine
 
 [windows_prod_marine]
 # Add your production Windows Marine Tomcat servers here
-# Example: prod-win-marine-01 ansible_host=192.168.1.210
-# Example: prod-win-marine-02 ansible_host=192.168.1.211
+HQV-MRN-APPP01.TAWN.COM ansible_host=172.16.15.100
 
 [windows_prod_jboss:children]
 windows_prod_ebusiness
 
 [windows_prod_ebusiness]
 # Add your production Windows eBusiness JBoss servers here
-# Example: prod-win-ebusiness-01 ansible_host=192.168.1.220
-# Example: prod-win-ebusiness-02 ansible_host=192.168.1.221
+HQV-BUSS-SAPP01.TAWN.COM ansible_host=172.16.1.61
+HQV-BUSS-SAPP02.TAWN.COM ansible_host=172.16.1.62
+HQV-BUSS-SAPP03.TAWN.COM ansible_host=10.24.11.121
+HQV-BUSS-SAPP04.TAWN.COM ansible_host=10.24.11.122
+HQV-BUSS-SAPP05.TAWN.COM ansible_host=172.16.1.63
 
 [windows_prod_httpd:children]
 windows_prod_teammate
@@ -502,12 +506,9 @@ windows_prod_digital_httpd
 [windows_prod_teammate]
 # Add your production Windows Teammate HTTPD servers here
 HQV-TM-AMSP01.TAWN.COM ansible_host=10.24.2.155
-HQV-TM-AMST01.TAWN.COM ansible_host=10.24.7.49
 
 [windows_prod_digital_httpd]
 # Add your production Windows Digital HTTPD servers here
-# Example: prod-win-digital-httpd-01 ansible_host=192.168.1.240
-# Example: prod-win-digital-httpd-02 ansible_host=192.168.1.241
 
 # Disaster Recovery Windows Servers
 [windows_dr:children]
@@ -571,8 +572,9 @@ windows_dr_marine
 
 [windows_dr_docmosis]
 # Add your DR Windows Docmosis Tomcat servers here
-# Example: dr-win-docmosis-01 ansible_host=192.168.2.180
-# Example: dr-win-docmosis-02 ansible_host=192.168.2.181
+DRV-DOC-WEBP01.TAWN.COM ansible_host=172.19.40.177
+DRV-DOC-WEBP02.TAWN.COM ansible_host=172.19.40.178
+
 
 [windows_dr_digital_tomcat]
 # Add your DR Windows Digital Tomcat servers here
@@ -704,8 +706,8 @@ windows_test_digital_httpd
 
 [windows_test_teammate]
 # Add your test Windows Teammate HTTPD servers here
-# Example: test-win-teammate-01 ansible_host=192.168.3.230
-# Example: test-win-teammate-02 ansible_host=192.168.3.231
+HQV-TM-AMST01.TAWN.COM ansible_host=10.24.7.49
+
 
 [windows_test_digital_httpd]
 # Add your test Windows Digital HTTPD servers here

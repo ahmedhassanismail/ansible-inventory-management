@@ -1,0 +1,395 @@
+pipeline {
+    agent any
+    
+    environment {
+        VAULT_PASSWORD_FILE = '.vault_pass'
+        ANSIBLE_INVENTORY = 'inventory'
+    }
+    
+    parameters {
+        choice(name: 'BUSINESS_LINE', choices: [
+            'medgo', 
+            'external_reports', 
+            'batch', 
+            'ncci', 
+            'wasel', 
+            'takaful',
+            'docmosis',
+            'digital',
+            'filenet',
+            'marine',
+            'ebusiness',
+            'teammate'
+        ], description: 'Select the business line to operate on')
+        
+        choice(name: 'ENVIRONMENT', choices: [
+            'prod', 
+            'dr', 
+            'dev', 
+            'sit', 
+            'test', 
+            'uat'
+        ], description: 'Select the environment')
+        
+        choice(name: 'OPERATION', choices: [
+            'java_upgrade', 
+            'opatch_upgrade', 
+            'patch_application'
+        ], description: 'Select the operation to perform')
+        
+        string(name: 'OLD_JAVA_VERSION', defaultValue: 'jdk-11.0.12', description: 'Current Java version to replace')
+        string(name: 'NEW_JAVA_VERSION', defaultValue: 'jdk-11.0.60', description: 'New Java version to install')
+        string(name: 'JAVA_INSTALLER', defaultValue: 'jdk-11.0.60-windows-x64.exe', description: 'Java installer filename')
+        string(name: 'JAVA_INSTALL_DIR', defaultValue: 'E:\\jdk-11.0.60', description: 'Java installation directory on Windows')
+        string(name: 'ORACLE_HOME', defaultValue: 'E:\\Oracle\\Middleware\\Oracle_Home', description: 'Oracle Home directory')
+        string(name: 'BACKUP_DIR', defaultValue: 'E:\\Oracle\\backup', description: 'Backup directory on Windows')
+        string(name: 'JAVA_SOURCE_DIR', defaultValue: 'E:\\Java_source', description: 'Java source directory on Windows')
+        
+        // OPatch specific variables
+        string(name: 'LOCAL_OPATCH_JAR', defaultValue: '/home/appadmin/OPatch/6880880/opatch_generic.jar', description: 'Path to OPatch JAR on Ansible server')
+        string(name: 'OPATCH_TEMP_DIR', defaultValue: 'E:\\OPatch_source', description: 'Temporary directory for OPatch on Windows')
+        string(name: 'JAVA_PATH', defaultValue: 'E:\\jdk1.8.0_441\\bin\\java.exe', description: 'Java executable path on Windows')
+        
+        // Patch specific variables
+        string(name: 'PATCH_NUMBER', defaultValue: '35247514', description: 'WebLogic patch number')
+        string(name: 'PATCH_FILE', defaultValue: 'p35247514_122130_Generic.zip', description: 'Patch filename')
+        string(name: 'PATCH_LOCAL_PATH', defaultValue: '/home/appadmin/patches/p35247514_122130_Generic.zip', description: 'Patch path on Ansible server')
+        string(name: 'PATCH_REMOTE_PATH', defaultValue: 'E:\\Oracle\\patches\\p35247514_122130_Generic.zip', description: 'Patch path on Windows server')
+        string(name: 'PATCH_EXTRACT_PATH', defaultValue: 'E:\\Oracle\\Middleware\\patches\\35247514', description: 'Patch extraction path on Windows')
+        
+        booleanParam(name: 'DRY_RUN', defaultValue: true, description: 'Run in check mode (dry run)')
+        booleanParam(name: 'VERBOSE', defaultValue: true, description: 'Enable verbose output')
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true, description: 'Execute host by host with user confirmation')
+        booleanParam(name: 'SKIP_FIRST_CONFIRMATION', defaultValue: true, description: 'Skip confirmation for first host')
+    }
+    
+    stages {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    // Validate Java version parameters
+                    if (params.OPERATION == 'java_upgrade') {
+                        if (params.OLD_JAVA_VERSION == params.NEW_JAVA_VERSION) {
+                            error "Old and new Java versions cannot be the same!"
+                        }
+                        if (!params.OLD_JAVA_VERSION || !params.NEW_JAVA_VERSION) {
+                            error "Both old and new Java versions must be specified for Java upgrade!"
+                        }
+                    }
+                    
+                    // Validate OPatch parameters
+                    if (params.OPERATION == 'opatch_upgrade') {
+                        if (!params.LOCAL_OPATCH_JAR || !params.OPATCH_TEMP_DIR || !params.JAVA_PATH || !params.ORACLE_HOME) {
+                            error "All OPatch parameters must be specified for OPatch upgrade!"
+                        }
+                    }
+                    
+                    // Validate Patch parameters
+                    if (params.OPERATION == 'patch_application') {
+                        if (!params.PATCH_NUMBER || !params.PATCH_FILE || !params.ORACLE_HOME) {
+                            error "All patch parameters must be specified for patch application!"
+                        }
+                    }
+                    
+                    echo "Parameter validation passed successfully!"
+                }
+            }
+        }
+        
+        stage('Get Host List') {
+            steps {
+                script {
+                    // Determine the correct host group based on business line and environment
+                    def hostGroup = getHostGroup(params.BUSINESS_LINE, params.ENVIRONMENT, params.OPERATION)
+                    
+                    // Get list of hosts in the group
+                    def hostList = sh(
+                        script: """
+                            ansible -i ${ANSIBLE_INVENTORY} ${hostGroup} --list-hosts --vault-password-file ${VAULT_PASSWORD_FILE} 2>/dev/null | grep -v 'hosts' | grep -v '^$' | tr -d ' ' | sort
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (hostList) {
+                        env.HOST_LIST = hostList
+                        env.HOST_COUNT = hostList.split('\n').length
+                        echo "Found ${env.HOST_COUNT} hosts in group ${hostGroup}:"
+                        echo "${hostList}"
+                    } else {
+                        error "No hosts found in group ${hostGroup}. Please check your inventory configuration."
+                    }
+                }
+            }
+        }
+        
+        stage('Pre-Execution Summary') {
+            steps {
+                script {
+                    def hostGroup = getHostGroup(params.BUSINESS_LINE, params.ENVIRONMENT, params.OPERATION)
+                    
+                    echo """
+                    ========================================
+                    BUSINESS LINE OPERATION SUMMARY
+                    ========================================
+                    Business Line: ${params.BUSINESS_LINE}
+                    Environment: ${params.ENVIRONMENT}
+                    Operation: ${params.OPERATION}
+                    Target Host Group: ${hostGroup}
+                    Total Hosts: ${env.HOST_COUNT}
+                    Execution Mode: ${params.HOST_BY_HOST ? 'Host by Host' : 'Parallel'}
+                    Dry Run: ${params.DRY_RUN}
+                    Vault Password File: ${VAULT_PASSWORD_FILE}
+                    
+                    Operation Details:
+                    ${getOperationDetails(params.OPERATION)}
+                    
+                    Target Hosts:
+                    ${env.HOST_LIST}
+                    ========================================
+                    """
+                }
+            }
+        }
+        
+        stage('Execute Operation') {
+            steps {
+                script {
+                    if (params.HOST_BY_HOST) {
+                        executeHostByHost()
+                    } else {
+                        executeParallel()
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "Business Line Operation Completed!"
+            echo "Business Line: ${params.BUSINESS_LINE}"
+            echo "Environment: ${params.ENVIRONMENT}"
+            echo "Operation: ${params.OPERATION}"
+        }
+        
+        success {
+            echo "✅ Operation completed successfully!"
+        }
+        
+        failure {
+            echo "❌ Operation failed!"
+        }
+    }
+}
+
+// Helper functions
+def getHostGroup(businessLine, environment, operation) {
+    def middlewareType = ""
+    def hostGroup = ""
+    
+    switch (operation) {
+        case 'java_upgrade':
+        case 'opatch_upgrade':
+        case 'patch_application':
+            middlewareType = "weblogic"
+            break
+        default:
+            middlewareType = "weblogic"
+    }
+    
+    switch (businessLine) {
+        case 'medgo':
+            hostGroup = "windows_${environment}_medgo"
+            break
+        case 'external_reports':
+            hostGroup = "windows_${environment}_external_report"
+            break
+        case 'batch':
+            hostGroup = "windows_${environment}_batch"
+            break
+        case 'ncci':
+            hostGroup = "windows_${environment}_ncci"
+            break
+        case 'wasel':
+            hostGroup = "windows_${environment}_wasel"
+            break
+        case 'takaful':
+            hostGroup = "windows_${environment}_takaful"
+            break
+        case 'docmosis':
+            hostGroup = "windows_${environment}_docmosis"
+            break
+        case 'digital':
+            hostGroup = operation == 'java_upgrade' ? "windows_${environment}_digital_tomcat" : "windows_${environment}_digital_httpd"
+            break
+        case 'filenet':
+            hostGroup = "windows_${environment}_filenet"
+            break
+        case 'marine':
+            hostGroup = "windows_${environment}_marine"
+            break
+        case 'ebusiness':
+            hostGroup = "windows_${environment}_ebusiness"
+            break
+        case 'teammate':
+            hostGroup = "windows_${environment}_teammate"
+            break
+        default:
+            hostGroup = "windows_${environment}_${middlewareType}"
+    }
+    
+    return hostGroup
+}
+
+def getOperationDetails(operation) {
+    switch (operation) {
+        case 'java_upgrade':
+            return """
+            Java Version Update: ${params.OLD_JAVA_VERSION} → ${params.NEW_JAVA_VERSION}
+            Java Installer: ${params.JAVA_INSTALLER}
+            Java Install Dir: ${params.JAVA_INSTALL_DIR}
+            Oracle Home: ${params.ORACLE_HOME}
+            Backup Dir: ${params.BACKUP_DIR}
+            Java Source Dir: ${params.JAVA_SOURCE_DIR}
+            """
+        case 'opatch_upgrade':
+            return """
+            OPatch JAR: ${params.LOCAL_OPATCH_JAR}
+            Temp Dir: ${params.OPATCH_TEMP_DIR}
+            Java Path: ${params.JAVA_PATH}
+            Oracle Home: ${params.ORACLE_HOME}
+            """
+        case 'patch_application':
+            return """
+            Patch Number: ${params.PATCH_NUMBER}
+            Patch File: ${params.PATCH_FILE}
+            Local Path: ${params.PATCH_LOCAL_PATH}
+            Remote Path: ${params.PATCH_REMOTE_PATH}
+            Extract Path: ${params.PATCH_EXTRACT_PATH}
+            Oracle Home: ${params.ORACLE_HOME}
+            """
+        default:
+            return "Unknown operation"
+    }
+}
+
+def executeHostByHost() {
+    def hostList = env.HOST_LIST.split('\n')
+    def hostGroup = getHostGroup(params.BUSINESS_LINE, params.ENVIRONMENT, params.OPERATION)
+    def playbookPath = "yml/${params.BUSINESS_LINE}/${params.ENVIRONMENT}/weblogic"
+    
+    for (int i = 0; i < hostList.length; i++) {
+        def host = hostList[i].trim()
+        
+        if (i == 0 && params.SKIP_FIRST_CONFIRMATION) {
+            echo "Processing first host: ${host} (skipping confirmation)"
+        } else {
+            echo "Waiting for user confirmation to process host: ${host}"
+            input message: "Proceed with host ${host}? (${i + 1}/${hostList.length})"
+        }
+        
+        echo "Processing host: ${host}"
+        
+        try {
+            def command = buildAnsibleCommand(hostGroup, playbookPath, host)
+            sh command
+            
+            echo "✅ Successfully processed host: ${host}"
+            
+            if (i < hostList.length - 1) {
+                echo "Waiting 30 minutes before next host..."
+                sleep 1800 // 30 minutes
+            }
+            
+        } catch (Exception e) {
+            echo "❌ Failed to process host: ${host}"
+            echo "Error: ${e.getMessage()}"
+            
+            def continueChoice = input(
+                message: "Host ${host} failed. Continue with remaining hosts?",
+                parameters: [
+                    choice(name: 'CONTINUE_CHOICE', choices: ['Continue', 'Stop'], description: 'Choose action')
+                ]
+            )
+            
+            if (continueChoice == 'Stop') {
+                error "Stopping execution due to host failure: ${host}"
+            }
+        }
+    }
+}
+
+def executeParallel() {
+    def hostGroup = getHostGroup(params.BUSINESS_LINE, params.ENVIRONMENT, params.OPERATION)
+    def playbookPath = "yml/${params.BUSINESS_LINE}/${params.ENVIRONMENT}/weblogic"
+    
+    def command = buildAnsibleCommand(hostGroup, playbookPath)
+    sh command
+}
+
+def buildAnsibleCommand(hostGroup, playbookPath, specificHost = null) {
+    def baseCommand = "ansible-playbook --vault-password-file ${VAULT_PASSWORD_FILE} -i ${ANSIBLE_INVENTORY}"
+    
+    // Add playbook path
+    switch (params.OPERATION) {
+        case 'java_upgrade':
+            baseCommand += " ${playbookPath}/upgrade_Java_weblogic.yml"
+            break
+        case 'opatch_upgrade':
+            baseCommand += " ${playbookPath}/upgrade_opatch_windows.yml"
+            break
+        case 'patch_application':
+            baseCommand += " ${playbookPath}/Apply_Patch_weblogic.yml"
+            break
+    }
+    
+    // Add host limit if processing specific host
+    if (specificHost) {
+        baseCommand += " --limit ${specificHost}"
+    }
+    
+    // Add variables based on operation
+    baseCommand += getVariableString()
+    
+    // Add dry run and verbose flags
+    if (params.DRY_RUN) {
+        baseCommand += " --check"
+    }
+    if (params.VERBOSE) {
+        baseCommand += " -vv"
+    }
+    
+    return baseCommand
+}
+
+def getVariableString() {
+    def vars = ""
+    
+    switch (params.OPERATION) {
+        case 'java_upgrade':
+            vars += " -e \"old_java_version='${params.OLD_JAVA_VERSION}'\""
+            vars += " -e \"new_java_version='${params.NEW_JAVA_VERSION}'\""
+            vars += " -e \"java_installer='${params.JAVA_INSTALLER}'\""
+            vars += " -e \"java_install_dir='${params.JAVA_INSTALL_DIR}'\""
+            vars += " -e \"oracle_home='${params.ORACLE_HOME}'\""
+            vars += " -e \"backup_dir='${params.BACKUP_DIR}'\""
+            vars += " -e \"java_source_dir='${params.JAVA_SOURCE_DIR}'\""
+            break
+        case 'opatch_upgrade':
+            vars += " -e \"local_opatch_jar='${params.LOCAL_OPATCH_JAR}'\""
+            vars += " -e \"opatch_temp_dir='${params.OPATCH_TEMP_DIR}'\""
+            vars += " -e \"java_path='${params.JAVA_PATH}'\""
+            vars += " -e \"oracle_home='${params.ORACLE_HOME}'\""
+            break
+        case 'patch_application':
+            vars += " -e \"patch_number='${params.PATCH_NUMBER}'\""
+            vars += " -e \"patch_file='${params.PATCH_FILE}'\""
+            vars += " -e \"oracle_home='${params.ORACLE_HOME}'\""
+            vars += " -e \"patch_local_path='${params.PATCH_LOCAL_PATH}'\""
+            vars += " -e \"patch_remote_path='${params.PATCH_REMOTE_PATH}'\""
+            vars += " -e \"patch_extract_path='${params.PATCH_EXTRACT_PATH}'\""
+            break
+    }
+    
+    return vars
+}
