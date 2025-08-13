@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent ansible-agent
     
     environment {
         VAULT_PASSWORD_FILE = '.vault_pass'

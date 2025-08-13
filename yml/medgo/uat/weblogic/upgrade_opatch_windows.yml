@@ -1,6 +1,6 @@
 ---
 - name: Upgrade OPatch on WebLogic Windows Server using opatch_generic.jar
-  hosts: prod_weblogic_win
+  hosts: windows_uat_medgo
   gather_facts: no
   
   vars:

@@ -1,6 +1,6 @@
 ---
 - name: Apply WebLogic Patch using OPatch on Windows
-  hosts: prod_weblogic_win
+  hosts: windows_dr_medgo
   gather_facts: no
   
   vars:

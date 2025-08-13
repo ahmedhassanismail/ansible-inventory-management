@@ -1,6 +1,6 @@
 ---
 - name: Backup, Replace WebLogic Files, Uninstall & Install Java on Windows Server - MedGo Business Line (PROD Environment)
-  hosts: prod_weblogic_medgo
+  hosts: windows_prod_medgo
   gather_facts: no
   
   vars:
