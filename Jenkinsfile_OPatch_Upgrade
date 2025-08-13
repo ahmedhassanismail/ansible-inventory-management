@@ -1,0 +1,213 @@
+pipeline {
+    agent any
+    
+    environment {
+        VAULT_PASSWORD_FILE = '.vault_pass'
+        ANSIBLE_INVENTORY = 'inventory'
+        PLAYBOOK_PATH = 'yml/medgo/prod/weblogic'
+        YAML_FILE = 'upgrade_opatch_windows.yml'
+    }
+    
+    parameters {
+        string(name: 'HOST_GROUP', defaultValue: 'windows_prod_medgo', description: 'Target host group (e.g., windows_prod_medgo, windows_dr_takaful)')
+        
+        // OPatch specific variables
+        string(name: 'LOCAL_OPATCH_JAR', defaultValue: '/home/appadmin/OPatch/6880880/opatch_generic.jar', description: 'Path to OPatch JAR on Ansible server')
+        string(name: 'OPATCH_TEMP_DIR', defaultValue: 'E:\\OPatch_source', description: 'Temporary directory for OPatch on Windows')
+        string(name: 'JAVA_PATH', defaultValue: 'E:\\jdk1.8.0_441\\bin\\java.exe', description: 'Java executable path on Windows')
+        string(name: 'ORACLE_HOME', defaultValue: 'E:\\Oracle\\Middleware\\Oracle_Home', description: 'Oracle Home directory')
+        
+        // Execution Control
+        booleanParam(name: 'DRY_RUN', defaultValue: true, description: 'Run in check mode (dry run)')
+        booleanParam(name: 'VERBOSE', defaultValue: true, description: 'Enable verbose output')
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true, description: 'Execute host by host with user confirmation')
+        booleanParam(name: 'SKIP_FIRST_CONFIRMATION', defaultValue: true, description: 'Skip confirmation for first host')
+        string(name: 'PAUSE_MINUTES', defaultValue: '30', description: 'Pause between hosts in minutes')
+    }
+    
+    stages {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    // Validate host group
+                    if (!params.HOST_GROUP) {
+                        error "Host group must be specified!"
+                    }
+                    
+                    // Validate OPatch parameters
+                    if (!params.LOCAL_OPATCH_JAR || !params.OPATCH_TEMP_DIR || !params.JAVA_PATH || !params.ORACLE_HOME) {
+                        error "All OPatch parameters must be specified for OPatch upgrade!"
+                    }
+                    
+                    // Validate YAML file is for OPatch upgrade
+                    if (!env.YAML_FILE.contains('upgrade_opatch_windows')) {
+                        error "This pipeline is for OPatch upgrade operations only. Please use upgrade_opatch_windows.yml or similar file."
+                    }
+                    
+                    echo "Parameter validation passed successfully!"
+                }
+            }
+        }
+        
+        stage('Get Host List') {
+            steps {
+                script {
+                    // Get list of hosts in the specified group
+                    def hostList = sh(
+                        script: """
+                            ansible -i ${ANSIBLE_INVENTORY} ${params.HOST_GROUP} --list-hosts --vault-password-file ${VAULT_PASSWORD_FILE} 2>/dev/null | grep -v 'hosts' | grep -v '^$' | tr -d ' ' | sort
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (hostList) {
+                        env.HOST_LIST = hostList
+                        env.HOST_COUNT = hostList.split('\n').length
+                        echo "Found ${env.HOST_COUNT} hosts in group ${params.HOST_GROUP}:"
+                        echo "${hostList}"
+                    } else {
+                        error "No hosts found in group ${params.HOST_GROUP}. Please check your inventory configuration."
+                    }
+                }
+            }
+        }
+        
+        stage('Pre-Execution Summary') {
+            steps {
+                script {
+                    echo """
+                    ========================================
+                    OPATCH UPGRADE OPERATION SUMMARY
+                    ========================================
+                    Target Host Group: ${params.HOST_GROUP}
+                    Playbook Path: ${env.PLAYBOOK_PATH}
+                    YAML File: ${env.YAML_FILE}
+                    Total Hosts: ${env.HOST_COUNT}
+                    Execution Mode: ${params.HOST_BY_HOST ? 'Host by Host' : 'Parallel'}
+                    Dry Run: ${params.DRY_RUN}
+                    Vault Password File: ${VAULT_PASSWORD_FILE}
+                    
+                    OPatch Upgrade Details:
+                    OPatch JAR: ${params.LOCAL_OPATCH_JAR}
+                    Temp Dir: ${params.OPATCH_TEMP_DIR}
+                    Java Path: ${params.JAVA_PATH}
+                    Oracle Home: ${params.ORACLE_HOME}
+                    
+                    Target Hosts:
+                    ${env.HOST_LIST}
+                    ========================================
+                    """
+                }
+            }
+        }
+        
+        stage('Execute OPatch Upgrade') {
+            steps {
+                script {
+                    if (params.HOST_BY_HOST) {
+                        executeHostByHost()
+                    } else {
+                        executeParallel()
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "OPatch Upgrade Operation Completed!"
+            echo "YAML File: ${env.YAML_FILE}"
+            echo "Host Group: ${params.HOST_GROUP}"
+            echo "Playbook Path: ${env.PLAYBOOK_PATH}"
+            echo "OPatch JAR: ${params.LOCAL_OPATCH_JAR}"
+        }
+        
+        success {
+            echo "✅ OPatch upgrade completed successfully!"
+        }
+        
+        failure {
+            echo "❌ OPatch upgrade failed!"
+        }
+    }
+}
+
+// Helper functions
+def executeHostByHost() {
+    def hostList = env.HOST_LIST.split('\n')
+    def pauseSeconds = params.PAUSE_MINUTES.toInteger() * 60
+    
+    for (int i = 0; i < hostList.length; i++) {
+        def host = hostList[i].trim()
+        
+        if (i == 0 && params.SKIP_FIRST_CONFIRMATION) {
+            echo "Processing first host: ${host} (skipping confirmation)"
+        } else {
+            echo "Waiting for user confirmation to process host: ${host}"
+            input message: "Proceed with OPatch upgrade on host ${host}? (${i + 1}/${hostList.length})"
+        }
+        
+        echo "Processing OPatch upgrade on host: ${host}"
+        
+        try {
+            def command = buildAnsibleCommand(host)
+            sh command
+            
+            echo "✅ Successfully upgraded OPatch on host: ${host}"
+            
+            if (i < hostList.length - 1) {
+                echo "Waiting ${params.PAUSE_MINUTES} minutes before next host..."
+                sleep pauseSeconds
+            }
+            
+        } catch (Exception e) {
+            echo "❌ Failed to upgrade OPatch on host: ${host}"
+            echo "Error: ${e.getMessage()}"
+            
+            def continueChoice = input(
+                message: "Host ${host} failed. Continue with remaining hosts?",
+                parameters: [
+                    choice(name: 'CONTINUE_CHOICE', choices: ['Continue', 'Stop'], description: 'Choose action')
+                ]
+            )
+            
+            if (continueChoice == 'Stop') {
+                error "Stopping execution due to host failure: ${host}"
+            }
+        }
+    }
+}
+
+def executeParallel() {
+    def command = buildAnsibleCommand()
+    sh command
+}
+
+def buildAnsibleCommand(specificHost = null) {
+    def baseCommand = "ansible-playbook --vault-password-file ${VAULT_PASSWORD_FILE} -i ${ANSIBLE_INVENTORY}"
+    
+    // Add playbook path and YAML file
+    baseCommand += " ${env.PLAYBOOK_PATH}/${env.YAML_FILE}"
+    
+    // Add host limit if processing specific host
+    if (specificHost) {
+        baseCommand += " --limit ${specificHost}"
+    }
+    
+    // Add OPatch upgrade variables
+    baseCommand += " -e \"local_opatch_jar='${params.LOCAL_OPATCH_JAR}'\""
+    baseCommand += " -e \"opatch_temp_dir='${params.OPATCH_TEMP_DIR}'\""
+    baseCommand += " -e \"java_path='${params.JAVA_PATH}'\""
+    baseCommand += " -e \"oracle_home='${params.ORACLE_HOME}'\""
+    
+    // Add dry run and verbose flags
+    if (params.DRY_RUN) {
+        baseCommand += " --check"
+    }
+    if (params.VERBOSE) {
+        baseCommand += " -vv"
+    }
+    
+    return baseCommand
+}

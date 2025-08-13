@@ -1,0 +1,224 @@
+pipeline {
+    agent any
+    
+    environment {
+        VAULT_PASSWORD_FILE = '.vault_pass'
+        ANSIBLE_INVENTORY = 'inventory'
+        PLAYBOOK_PATH = 'yml/medgo/prod/weblogic'
+        YAML_FILE = 'upgrade_Java_weblogic.yml'
+    }
+    
+    parameters {
+        string(name: 'HOST_GROUP', defaultValue: 'windows_prod_medgo', description: 'Target host group (e.g., windows_prod_medgo, windows_dr_takaful)')
+        
+        // Java Upgrade Variables
+        string(name: 'OLD_JAVA_VERSION', defaultValue: 'jdk-11.0.12', description: 'Current Java version to replace')
+        string(name: 'NEW_JAVA_VERSION', defaultValue: 'jdk-11.0.60', description: 'New Java version to install')
+        string(name: 'JAVA_INSTALLER', defaultValue: 'jdk-11.0.60-windows-x64.exe', description: 'Java installer filename')
+        string(name: 'JAVA_INSTALL_DIR', defaultValue: 'E:\\jdk-11.0.60', description: 'Java installation directory on Windows')
+        string(name: 'ORACLE_HOME', defaultValue: 'E:\\Oracle\\Middleware\\Oracle_Home', description: 'Oracle Home directory')
+        string(name: 'BACKUP_DIR', defaultValue: 'E:\\Oracle\\backup', description: 'Backup directory on Windows')
+        string(name: 'JAVA_SOURCE_DIR', defaultValue: 'E:\\Java_source', description: 'Java source directory on Windows')
+        
+        // Execution Control
+        booleanParam(name: 'DRY_RUN', defaultValue: true, description: 'Run in check mode (dry run)')
+        booleanParam(name: 'VERBOSE', defaultValue: true, description: 'Enable verbose output')
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true, description: 'Execute host by host with user confirmation')
+        booleanParam(name: 'SKIP_FIRST_CONFIRMATION', defaultValue: true, description: 'Skip confirmation for first host')
+        string(name: 'PAUSE_MINUTES', defaultValue: '30', description: 'Pause between hosts in minutes')
+    }
+    
+    stages {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    // Validate host group
+                    if (!params.HOST_GROUP) {
+                        error "Host group must be specified!"
+                    }
+                    
+                    // Validate Java version parameters
+                    if (params.OLD_JAVA_VERSION == params.NEW_JAVA_VERSION) {
+                        error "Old and new Java versions cannot be the same!"
+                    }
+                    if (!params.OLD_JAVA_VERSION || !params.NEW_JAVA_VERSION) {
+                        error "Both old and new Java versions must be specified for Java upgrade!"
+                    }
+                    
+                    // Validate YAML file is for Java upgrade
+                    if (!env.YAML_FILE.contains('upgrade_Java_weblogic')) {
+                        error "This pipeline is for Java upgrade operations only. Please use upgrade_Java_weblogic.yml or similar file."
+                    }
+                    
+                    echo "Parameter validation passed successfully!"
+                }
+            }
+        }
+        
+        stage('Get Host List') {
+            steps {
+                script {
+                    // Get list of hosts in the specified group
+                    def hostList = sh(
+                        script: """
+                            ansible -i ${ANSIBLE_INVENTORY} ${params.HOST_GROUP} --list-hosts --vault-password-file ${VAULT_PASSWORD_FILE} 2>/dev/null | grep -v 'hosts' | grep -v '^$' | tr -d ' ' | sort
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (hostList) {
+                        env.HOST_LIST = hostList
+                        env.HOST_COUNT = hostList.split('\n').length
+                        echo "Found ${env.HOST_COUNT} hosts in group ${params.HOST_GROUP}:"
+                        echo "${hostList}"
+                    } else {
+                        error "No hosts found in group ${params.HOST_GROUP}. Please check your inventory configuration."
+                    }
+                }
+            }
+        }
+        
+        stage('Pre-Execution Summary') {
+            steps {
+                script {
+                    echo """
+                    ========================================
+                    JAVA UPGRADE OPERATION SUMMARY
+                    ========================================
+                    Target Host Group: ${params.HOST_GROUP}
+                    Playbook Path: ${env.PLAYBOOK_PATH}
+                    YAML File: ${env.YAML_FILE}
+                    Total Hosts: ${env.HOST_COUNT}
+                    Execution Mode: ${params.HOST_BY_HOST ? 'Host by Host' : 'Parallel'}
+                    Dry Run: ${params.DRY_RUN}
+                    Vault Password File: ${VAULT_PASSWORD_FILE}
+                    
+                    Java Upgrade Details:
+                    Java Version Update: ${params.OLD_JAVA_VERSION} → ${params.NEW_JAVA_VERSION}
+                    Java Installer: ${params.JAVA_INSTALLER}
+                    Java Install Dir: ${params.JAVA_INSTALL_DIR}
+                    Oracle Home: ${params.ORACLE_HOME}
+                    Backup Dir: ${params.BACKUP_DIR}
+                    Java Source Dir: ${params.JAVA_SOURCE_DIR}
+                    
+                    Target Hosts:
+                    ${env.HOST_LIST}
+                    ========================================
+                    """
+                }
+            }
+        }
+        
+        stage('Execute Java Upgrade') {
+            steps {
+                script {
+                    if (params.HOST_BY_HOST) {
+                        executeHostByHost()
+                    } else {
+                        executeParallel()
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "Java Upgrade Operation Completed!"
+            echo "YAML File: ${env.YAML_FILE}"
+            echo "Host Group: ${params.HOST_GROUP}"
+            echo "Playbook Path: ${env.PLAYBOOK_PATH}"
+            echo "Java Version: ${params.OLD_JAVA_VERSION} → ${params.NEW_JAVA_VERSION}"
+        }
+        
+        success {
+            echo "✅ Java upgrade completed successfully!"
+        }
+        
+        failure {
+            echo "❌ Java upgrade failed!"
+        }
+    }
+}
+
+// Helper functions
+def executeHostByHost() {
+    def hostList = env.HOST_LIST.split('\n')
+    def pauseSeconds = params.PAUSE_MINUTES.toInteger() * 60
+    
+    for (int i = 0; i < hostList.length; i++) {
+        def host = hostList[i].trim()
+        
+        if (i == 0 && params.SKIP_FIRST_CONFIRMATION) {
+            echo "Processing first host: ${host} (skipping confirmation)"
+        } else {
+            echo "Waiting for user confirmation to process host: ${host}"
+            input message: "Proceed with Java upgrade on host ${host}? (${i + 1}/${hostList.length})"
+        }
+        
+        echo "Processing Java upgrade on host: ${host}"
+        
+        try {
+            def command = buildAnsibleCommand(host)
+            sh command
+            
+            echo "✅ Successfully upgraded Java on host: ${host}"
+            
+            if (i < hostList.length - 1) {
+                echo "Waiting ${params.PAUSE_MINUTES} minutes before next host..."
+                sleep pauseSeconds
+            }
+            
+        } catch (Exception e) {
+            echo "❌ Failed to upgrade Java on host: ${host}"
+            echo "Error: ${e.getMessage()}"
+            
+            def continueChoice = input(
+                message: "Host ${host} failed. Continue with remaining hosts?",
+                parameters: [
+                    choice(name: 'CONTINUE_CHOICE', choices: ['Continue', 'Stop'], description: 'Choose action')
+                ]
+            )
+            
+            if (continueChoice == 'Stop') {
+                error "Stopping execution due to host failure: ${host}"
+            }
+        }
+    }
+}
+
+def executeParallel() {
+    def command = buildAnsibleCommand()
+    sh command
+}
+
+def buildAnsibleCommand(specificHost = null) {
+    def baseCommand = "ansible-playbook --vault-password-file ${VAULT_PASSWORD_FILE} -i ${ANSIBLE_INVENTORY}"
+    
+    // Add playbook path and YAML file
+    baseCommand += " ${env.PLAYBOOK_PATH}/${env.YAML_FILE}"
+    
+    // Add host limit if processing specific host
+    if (specificHost) {
+        baseCommand += " --limit ${specificHost}"
+    }
+    
+    // Add Java upgrade variables
+    baseCommand += " -e \"old_java_version='${params.OLD_JAVA_VERSION}'\""
+    baseCommand += " -e \"new_java_version='${params.NEW_JAVA_VERSION}'\""
+    baseCommand += " -e \"java_installer='${params.JAVA_INSTALLER}'\""
+    baseCommand += " -e \"java_install_dir='${params.JAVA_INSTALL_DIR}'\""
+    baseCommand += " -e \"oracle_home='${params.ORACLE_HOME}'\""
+    baseCommand += " -e \"backup_dir='${params.BACKUP_DIR}'\""
+    baseCommand += " -e \"java_source_dir='${params.JAVA_SOURCE_DIR}'\""
+    
+    // Add dry run and verbose flags
+    if (params.DRY_RUN) {
+        baseCommand += " --check"
+    }
+    if (params.VERBOSE) {
+        baseCommand += " -vv"
+    }
+    
+    return baseCommand
+}

@@ -1,0 +1,220 @@
+pipeline {
+    agent any
+    
+    environment {
+        VAULT_PASSWORD_FILE = '.vault_pass'
+        ANSIBLE_INVENTORY = 'inventory'
+        PLAYBOOK_PATH = 'yml/medgo/prod/weblogic'
+        YAML_FILE = 'Apply_Patch_weblogic.yml'
+    }
+    
+    parameters {
+        string(name: 'HOST_GROUP', defaultValue: 'windows_prod_medgo', description: 'Target host group (e.g., windows_prod_medgo, windows_dr_takaful)')
+        
+        // Patch specific variables
+        string(name: 'PATCH_NUMBER', defaultValue: '35247514', description: 'WebLogic patch number')
+        string(name: 'PATCH_FILE', defaultValue: 'p35247514_122130_Generic.zip', description: 'Patch filename')
+        string(name: 'PATCH_LOCAL_PATH', defaultValue: '/home/appadmin/patches/p35247514_122130_Generic.zip', description: 'Patch path on Ansible server')
+        string(name: 'PATCH_REMOTE_PATH', defaultValue: 'E:\\Oracle\\patches\\p35247514_122130_Generic.zip', description: 'Patch path on Windows server')
+        string(name: 'PATCH_EXTRACT_PATH', defaultValue: 'E:\\Oracle\\Middleware\\patches\\35247514', description: 'Patch extraction path on Windows')
+        string(name: 'ORACLE_HOME', defaultValue: 'E:\\Oracle\\Middleware\\Oracle_Home', description: 'Oracle Home directory')
+        
+        // Execution Control
+        booleanParam(name: 'DRY_RUN', defaultValue: true, description: 'Run in check mode (dry run)')
+        booleanParam(name: 'VERBOSE', defaultValue: true, description: 'Enable verbose output')
+        booleanParam(name: 'HOST_BY_HOST', defaultValue: true, description: 'Execute host by host with user confirmation')
+        booleanParam(name: 'SKIP_FIRST_CONFIRMATION', defaultValue: true, description: 'Skip confirmation for first host')
+        string(name: 'PAUSE_MINUTES', defaultValue: '30', description: 'Pause between hosts in minutes')
+    }
+    
+    stages {
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    // Validate host group
+                    if (!params.HOST_GROUP) {
+                        error "Host group must be specified!"
+                    }
+                    
+                    // Validate Patch parameters
+                    if (!params.PATCH_NUMBER || !params.PATCH_FILE || !params.ORACLE_HOME) {
+                        error "All patch parameters must be specified for patch application!"
+                    }
+                    
+                    // Validate YAML file is for WebLogic patch
+                    if (!env.YAML_FILE.contains('Apply_Patch_weblogic')) {
+                        error "This pipeline is for WebLogic patch application operations only. Please use Apply_Patch_weblogic.yml or similar file."
+                    }
+                    
+                    echo "Parameter validation passed successfully!"
+                }
+            }
+        }
+        
+        stage('Get Host List') {
+            steps {
+                script {
+                    // Get list of hosts in the specified group
+                    def hostList = sh(
+                        script: """
+                            ansible -i ${ANSIBLE_INVENTORY} ${params.HOST_GROUP} --list-hosts --vault-password-file ${VAULT_PASSWORD_FILE} 2>/dev/null | grep -v 'hosts' | grep -v '^$' | tr -d ' ' | sort
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (hostList) {
+                        env.HOST_LIST = hostList
+                        env.HOST_COUNT = hostList.split('\n').length
+                        echo "Found ${env.HOST_COUNT} hosts in group ${params.HOST_GROUP}:"
+                        echo "${hostList}"
+                    } else {
+                        error "No hosts found in group ${params.HOST_GROUP}. Please check your inventory configuration."
+                    }
+                }
+            }
+        }
+        
+        stage('Pre-Execution Summary') {
+            steps {
+                script {
+                    echo """
+                    ========================================
+                    WEBLOGIC PATCH APPLICATION SUMMARY
+                    ========================================
+                    Target Host Group: ${params.HOST_GROUP}
+                    Playbook Path: ${env.PLAYBOOK_PATH}
+                    YAML File: ${env.YAML_FILE}
+                    Total Hosts: ${env.HOST_COUNT}
+                    Execution Mode: ${params.HOST_BY_HOST ? 'Host by Host' : 'Parallel'}
+                    Dry Run: ${params.DRY_RUN}
+                    Vault Password File: ${VAULT_PASSWORD_FILE}
+                    
+                    WebLogic Patch Details:
+                    Patch Number: ${params.PATCH_NUMBER}
+                    Patch File: ${params.PATCH_FILE}
+                    Local Path: ${params.PATCH_LOCAL_PATH}
+                    Remote Path: ${params.PATCH_REMOTE_PATH}
+                    Extract Path: ${params.PATCH_EXTRACT_PATH}
+                    Oracle Home: ${params.ORACLE_HOME}
+                    
+                    Target Hosts:
+                    ${env.HOST_LIST}
+                    ========================================
+                    """
+                }
+            }
+        }
+        
+        stage('Execute WebLogic Patch Application') {
+            steps {
+                script {
+                    if (params.HOST_BY_HOST) {
+                        executeHostByHost()
+                    } else {
+                        executeParallel()
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo "WebLogic Patch Application Operation Completed!"
+            echo "YAML File: ${env.YAML_FILE}"
+            echo "Host Group: ${params.HOST_GROUP}"
+            echo "Playbook Path: ${env.PLAYBOOK_PATH}"
+            echo "Patch Number: ${params.PATCH_NUMBER}"
+            echo "Patch File: ${params.PATCH_FILE}"
+        }
+        
+        success {
+            echo "✅ WebLogic patch application completed successfully!"
+        }
+        
+        failure {
+            echo "❌ WebLogic patch application failed!"
+        }
+    }
+}
+
+// Helper functions
+def executeHostByHost() {
+    def hostList = env.HOST_LIST.split('\n')
+    def pauseSeconds = params.PAUSE_MINUTES.toInteger() * 60
+    
+    for (int i = 0; i < hostList.length; i++) {
+        def host = hostList[i].trim()
+        
+        if (i == 0 && params.SKIP_FIRST_CONFIRMATION) {
+            echo "Processing first host: ${host} (skipping confirmation)"
+        } else {
+            echo "Waiting for user confirmation to process host: ${host}"
+            input message: "Proceed with WebLogic patch application on host ${host}? (${i + 1}/${hostList.length})"
+        }
+        
+        echo "Processing WebLogic patch application on host: ${host}"
+        
+        try {
+            def command = buildAnsibleCommand(host)
+            sh command
+            
+            echo "✅ Successfully applied WebLogic patch on host: ${host}"
+            
+            if (i < hostList.length - 1) {
+                echo "Waiting ${params.PAUSE_MINUTES} minutes before next host..."
+                sleep pauseSeconds
+            }
+            
+        } catch (Exception e) {
+            echo "❌ Failed to apply WebLogic patch on host: ${host}"
+            echo "Error: ${e.getMessage()}"
+            
+            def continueChoice = input(
+                message: "Host ${host} failed. Continue with remaining hosts?",
+                parameters: [
+                    choice(name: 'CONTINUE_CHOICE', choices: ['Continue', 'Stop'], description: 'Choose action')
+                ]
+            )
+            
+            if (continueChoice == 'Stop') {
+                error "Stopping execution due to host failure: ${host}"
+            }
+        }
+    }
+}
+
+def executeParallel() {
+    def command = buildAnsibleCommand()
+    sh command
+}
+
+def buildAnsibleCommand(specificHost = null) {
+    def baseCommand = "ansible-playbook --vault-password-file ${VAULT_PASSWORD_FILE} -i ${ANSIBLE_INVENTORY}"
+    
+    // Add playbook path and YAML file
+    baseCommand += " ${env.PLAYBOOK_PATH}/${env.YAML_FILE}"
+    
+    // Add host limit if processing specific host
+    if (specificHost) {
+        baseCommand += " --limit ${specificHost}"
+    }
+    
+    // Add WebLogic patch variables
+    baseCommand += " -e \"patch_number='${params.PATCH_NUMBER}'\""
+    baseCommand += " -e \"patch_file='${params.PATCH_FILE}'\""
+    baseCommand += " -e \"oracle_home='${params.ORACLE_HOME}'\""
+    baseCommand += " -e \"patch_local_path='${params.PATCH_LOCAL_PATH}'\""
+    baseCommand += " -e \"patch_remote_path='${params.PATCH_REMOTE_PATH}'\""
+    baseCommand += " -e \"patch_extract_path='${params.PATCH_EXTRACT_PATH}'\""
+    
+    // Add dry run and verbose flags
+    if (params.DRY_RUN) {
+        baseCommand += " --check"
+    }
+    if (params.VERBOSE) {
+        baseCommand += " -vv"
+    }
+    
+    return baseCommand
+}
